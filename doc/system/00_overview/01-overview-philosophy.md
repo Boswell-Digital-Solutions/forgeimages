@@ -1,5 +1,7 @@
 # §1 — Overview & Philosophy
 
+> **System identity — bds family (Boswell Digital Solutions business system, local-systems tier).** ForgeImages is the template-driven image asset pipeline for the Forge ecosystem backend, implemented as a Rust core + bridge tooling repo in `ecosystem/local-systems`.
+
 ## Service Identity
 
 **ForgeImages** is the template-driven image asset pipeline for the Forge Ecosystem. It provides deterministic, auditable image asset generation with strict validation enforcement and a clear separation between agent suggestions and system enforcement.

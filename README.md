@@ -1,4 +1,8 @@
-# ForgeImages
+# bds · ForgeImages
+
+> **System identity — bds family (Boswell Digital Solutions business system, local-systems tier).**
+> Template-driven image asset pipeline for the Forge ecosystem backend; a Rust core + bridge tooling repo in `ecosystem/local-systems`.
+> **Purpose:** enforces deterministic, auditable image asset validation and compilation through template-defined rules, keeping agent suggestion separate from system enforcement.
 
 ## Documentation Contract
 
