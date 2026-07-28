@@ -124,6 +124,39 @@ Links a specific compilation request to its output. Used in audit trail to verif
 
 `Rgb | Cmyk | Grayscale` — Serialized as UPPERCASE strings.
 
+## Raster→PDF/X-1a Writer (`pdf.rs`)
+
+`write_pdf_x1a` turns print-admissible raster samples into a single-page
+PDF/X-1a:2001 document. It is the render step that lets `book-cover-kdp` produce
+its `required` `cover-pdf` export instead of a placeholder (see §6 for how the
+master reaches it).
+
+### Design constraints
+
+- **Deterministic (Law 4).** The output is a pure function of `(samples,
+  geometry, output intent)`. The PDF is hand-written, not produced by a library,
+  precisely to keep the three usual sources of non-determinism out of the
+  reproducibility path: the `CreationDate`/`ModDate` are a fixed synthetic
+  constant, the `/ID` is derived from a content hash, and the image stream is
+  stored **uncompressed** (no encoder version to drift under the hash).
+- **Device color only.** `DeviceColor` is `Gray | Cmyk` — there is no RGB
+  variant, because PDF/X-1a forbids RGB. An inadmissible master is therefore
+  refused in `source_master.rs` (with a named reason) before it can reach the
+  writer.
+- **Geometry.** `points = pixels / dpi * 72`. The image fills the `MediaBox`
+  (full bleed); the `TrimBox` is inset by the bleed. `MediaBox`, `TrimBox`,
+  `BleedBox`, `OutputIntents`, `GTS_PDFXVersion` and `Trapped` are all emitted.
+
+### Conformance boundary
+
+The file is *structurally* PDF/X-1a:2001, and its blind-exchange conformance is
+only as strong as the `OutputIntent` it is given. The default
+(`OutputIntent::kdp_us_swop`) references the registered U.S. Web Coated (SWOP)
+condition **by name** (spec-permitted, and carries no licensed ICC into the
+repo); a deployment that needs an embedded `DestOutputProfile` — or a different
+condition — supplies its own intent. The module does not claim a file passes a
+specific vendor's preflight; that is a deployment-time check with a real profile.
+
 ## Compilation Pipeline (`pipeline.rs`)
 
 ### The Critical Invariant

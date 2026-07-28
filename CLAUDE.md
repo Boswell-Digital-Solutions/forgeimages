@@ -42,9 +42,13 @@ ForgeImages/
 │   │   ├── hashing.rs          # SHA-256, canonical JSON, job_hash
 │   │   ├── print.rs            # PrintAuthority enum, print specs
 │   │   ├── pipeline.rs         # CompilationPipeline (compile → validate → export)
+│   │   ├── source_master.rs    # source_data ingestion: decode, admissibility, render
+│   │   ├── pdf.rs              # Deterministic raster→PDF/X-1a:2001 writer
 │   │   └── bin/forgeimages_cli.rs  # CLI binary
-│   ├── templates/pwa-icon.json # PWA icon template
-│   └── tests/invariants.rs     # 6 contract invariant tests
+│   ├── templates/              # Template JSONs (pwa-icon, book-cover-kdp, panel-*)
+│   └── tests/
+│       ├── invariants.rs       # 6 contract invariant tests
+│       └── source_master.rs    # master ingestion + raster→PDF/X-1a tests
 │
 └── forgeagents-forgeimages/    # Python agent integration
     ├── bridge/                 # FastAPI HTTP gateway

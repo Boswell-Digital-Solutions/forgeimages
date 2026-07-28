@@ -451,6 +451,57 @@ The bridge service runs on `http://127.0.0.1:8100` (configurable via uvicorn).
 }
 ```
 
+### `source_data` — supplying a master
+
+`source_data` carries a base64 master asset. It is optional; when present it is
+**authoritative**, and the governing rule is:
+
+> A supplied master is never silently ignored. If it cannot be decoded, is not
+> admissible for the template, or cannot be converted to a required export, the
+> compile **fails**. It never falls back to the placeholder export.
+
+That rule exists because the opposite was previously true: `source_data` was
+accepted, transported and canonicalized into `job_hash`, but read by no code — so
+a caller who supplied a master received a placeholder asset accompanied by a hash
+asserting the master had been compiled.
+
+**Accepted masters** — SVG markup (tolerating a BOM/XML prolog), or a raster
+decodable by the enabled `image` features (PNG/JPEG/TIFF). Sniffing alone is not
+enough: the raster is fully decoded up front, so a truncated file carrying a
+valid magic number is rejected here rather than failing later during encoding.
+
+**Admissibility**, checked before any export is produced:
+
+| Condition | Result |
+|---|---|
+| Template declares `vectorMaster: true` and the master is raster | Refused — Law 1, *SVG Is Truth* |
+| `asset_input` dimensions differ from the master's real dimensions | Refused — validation ran against an asset that is not the one being compiled |
+
+**Conversions implemented** (both deterministic, Law 4):
+
+| Master | Export | Behaviour |
+|---|---|---|
+| SVG | `svg` | Pass-through |
+| Raster | `png` / `jpg`, size matches | Pass-through (no re-encode, so the hash stays stable) |
+| Raster | `png` / `jpg`, size differs | Lanczos3 resize + re-encode |
+| Raster (opaque grayscale) | `pdf` | **PDF/X-1a:2001** via the deterministic writer (`pdf.rs`): the master is embedded at 300 DPI with `MediaBox`/`TrimBox`/`OutputIntent` and no transparency |
+
+Everything else is **refused explicitly** rather than approximated: an SVG master
+to `pdf` (no rasterizer), raster→`ico`, and — the case that matters for covers —
+a **non-grayscale** raster to `pdf`. PDF/X-1a is a device grayscale/CMYK print
+standard, and turning an RGB diffusion master into CMYK is a color-managed step
+ForgeImages will not invent; it refuses with that reason rather than emit a
+"print-ready" file built on made-up color. So `book-cover-kdp` (whose PDF/X-1a
+export is `required`) now compiles from a supplied **grayscale** cover master and
+refuses precisely for an RGB one — the remaining gate is a chosen RGB→CMYK output
+intent, not a missing writer. See §7 for the writer's conformance boundary.
+
+**When `source_data` is absent**, behaviour is unchanged: exports are placeholders
+(an empty `<svg>`, a 1x1 PNG, or `b"placeholder"`), because export *rendering* is
+still unimplemented. That predates this change and is not widened by it — but it
+does mean a no-master compile of `book-cover-kdp` still returns a placeholder for
+a file described as print-ready.
+
 ### Error Semantics
 
 | HTTP Status | Meaning | When |
@@ -641,6 +692,39 @@ Links a specific compilation request to its output. Used in audit trail to verif
 ### ColorSpace Enum
 
 `Rgb | Cmyk | Grayscale` — Serialized as UPPERCASE strings.
+
+## Raster→PDF/X-1a Writer (`pdf.rs`)
+
+`write_pdf_x1a` turns print-admissible raster samples into a single-page
+PDF/X-1a:2001 document. It is the render step that lets `book-cover-kdp` produce
+its `required` `cover-pdf` export instead of a placeholder (see §6 for how the
+master reaches it).
+
+### Design constraints
+
+- **Deterministic (Law 4).** The output is a pure function of `(samples,
+  geometry, output intent)`. The PDF is hand-written, not produced by a library,
+  precisely to keep the three usual sources of non-determinism out of the
+  reproducibility path: the `CreationDate`/`ModDate` are a fixed synthetic
+  constant, the `/ID` is derived from a content hash, and the image stream is
+  stored **uncompressed** (no encoder version to drift under the hash).
+- **Device color only.** `DeviceColor` is `Gray | Cmyk` — there is no RGB
+  variant, because PDF/X-1a forbids RGB. An inadmissible master is therefore
+  refused in `source_master.rs` (with a named reason) before it can reach the
+  writer.
+- **Geometry.** `points = pixels / dpi * 72`. The image fills the `MediaBox`
+  (full bleed); the `TrimBox` is inset by the bleed. `MediaBox`, `TrimBox`,
+  `BleedBox`, `OutputIntents`, `GTS_PDFXVersion` and `Trapped` are all emitted.
+
+### Conformance boundary
+
+The file is *structurally* PDF/X-1a:2001, and its blind-exchange conformance is
+only as strong as the `OutputIntent` it is given. The default
+(`OutputIntent::kdp_us_swop`) references the registered U.S. Web Coated (SWOP)
+condition **by name** (spec-permitted, and carries no licensed ICC into the
+repo); a deployment that needs an embedded `DestOutputProfile` — or a different
+condition — supplies its own intent. The module does not claim a file passes a
+specific vendor's preflight; that is a deployment-time check with a real profile.
 
 ## Compilation Pipeline (`pipeline.rs`)
 

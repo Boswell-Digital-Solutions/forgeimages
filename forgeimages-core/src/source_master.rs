@@ -19,15 +19,29 @@
 //! their master was compiled, the manifest hash attests to a reproduction that
 //! never happened, and nothing in the output says otherwise.
 //!
-//! What this module does **not** do is render. SVG rasterization needs a real
-//! rasterizer and is out of scope here; raster→PDF likewise. Those conversions
-//! are refused explicitly rather than approximated, so an unimplemented path
-//! reads as a refusal instead of a wrong file.
+//! What this module does **not** do is invent. SVG rasterization needs a real
+//! rasterizer and is out of scope here. Raster→PDF *is* implemented, but only
+//! for print-admissible masters (opaque grayscale; CMYK is representable by the
+//! writer): an RGB master would require a color-managed RGB→CMYK conversion for
+//! PDF/X-1a, and ForgeImages does not invent color. Every unimplemented or
+//! inadmissible conversion is refused explicitly rather than approximated, so a
+//! path we cannot honour reads as a refusal instead of a wrong file.
 
 use base64::Engine as _;
 use thiserror::Error;
 
 use crate::templates::ExportFormat;
+
+/// Dots per inch for the print PDF path. 300 is the KDP requirement and the
+/// resolution the `book-cover-kdp` dimensions are computed at (3896x2775 px =
+/// 12.987" x 9.25" full-bleed cover). Per-template DPI would mean threading
+/// `PrintSpec` through this signature; that is a deliberate future extension,
+/// and 300 is correct for the one template that requests a PDF today.
+const PRINT_DPI: u32 = 300;
+
+/// Bleed inset, in inches, applied to the `TrimBox`. KDP's print spec is
+/// 0.125" bleed on every side.
+const KDP_BLEED_INCHES: f64 = 0.125;
 
 /// What a decoded master turned out to be.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -112,6 +126,26 @@ pub enum SourceMasterError {
 
     #[error("failed to encode export '{export_id}': {message}")]
     EncodeFailed { export_id: String, message: String },
+
+    #[error(
+        "export '{export_id}': PDF/X-1a is a device grayscale/CMYK print standard, \
+         but the master is {color_model}. ForgeImages does not perform color-managed \
+         RGB→CMYK conversion (it does not invent color); supply an opaque 8-bit \
+         grayscale or CMYK master."
+    )]
+    PrintColorNotAdmissible {
+        export_id: String,
+        color_model: String,
+    },
+
+    #[error(
+        "export '{export_id}': the master carries transparency, which PDF/X-1a \
+         forbids; flattening it would invent a background. Supply an opaque master."
+    )]
+    PrintTransparencyNotAllowed { export_id: String },
+
+    #[error("export '{export_id}': PDF generation failed: {message}")]
+    PdfWriteFailed { export_id: String, message: String },
 }
 
 /// Decode `source_data` and identify it.
@@ -141,8 +175,7 @@ pub fn decode(source_data: &str) -> Result<SourceMaster, SourceMasterError> {
     // alone is not enough: a truncated or corrupt file can carry a valid magic
     // number, and accepting it here would push the failure into export
     // rendering where it is harder to attribute.
-    let format = image::guess_format(&bytes)
-        .map_err(|_| SourceMasterError::UnrecognizedFormat)?;
+    let format = image::guess_format(&bytes).map_err(|_| SourceMasterError::UnrecognizedFormat)?;
     let decoded = image::load_from_memory_with_format(&bytes, format)
         .map_err(|e| SourceMasterError::RasterDecode(e.to_string()))?;
 
@@ -209,15 +242,19 @@ pub fn check_admissible(
 
 /// Produce the bytes for one export from the master.
 ///
-/// Supported in this slice, both deterministic:
+/// Supported, all deterministic:
 ///   * SVG master  → SVG export   (pass-through)
 ///   * raster master → PNG/JPEG export (pass-through when the format and size
 ///     already match, otherwise a fixed-filter resize and re-encode)
+///   * raster master → PDF export, when the master is print-admissible
+///     (opaque grayscale): a PDF/X-1a:2001 file via [`crate::pdf`]. This is what
+///     lets `book-cover-kdp` — whose `cover-pdf` export is `required` — actually
+///     compile from a supplied cover master.
 ///
-/// Everything else is refused. Notably raster→PDF: `book-cover-kdp` marks its
-/// PDF/X-1a export `required`, so a supplied cover master currently cannot
-/// satisfy that template. That refusal is the point — the alternative is
-/// shipping a "print-ready" file that is a placeholder.
+/// Everything else is refused, and the refusal names why. An RGB master to a PDF
+/// export is the important case: PDF/X-1a is device CMYK/grayscale, and turning
+/// RGB into CMYK is a color-managed step ForgeImages will not invent — so it
+/// refuses rather than emit a "print-ready" file built on made-up color.
 pub fn render_export(
     master: &SourceMaster,
     export_id: &str,
@@ -279,9 +316,87 @@ pub fn render_export(
             Ok(out.into_inner())
         }
 
-        (_, ExportFormat::Pdf) => Err(unsupported("pdf")),
+        // The master IS the artwork, so this is a real conversion, not a
+        // rasterization. Admissibility (color, transparency) is decided inside.
+        (SourceMasterKind::Raster, ExportFormat::Pdf) => raster_to_pdf_x1a(master, export_id, size),
+        // An SVG master would need rasterizing first; no rasterizer, so refuse.
+        (SourceMasterKind::Svg, ExportFormat::Pdf) => Err(unsupported("pdf")),
+
         (_, ExportFormat::Ico) => Err(unsupported("ico")),
         (SourceMasterKind::Raster, ExportFormat::Svg) => Err(unsupported("svg")),
         (SourceMasterKind::Svg, _) => Err(unsupported("a raster format")),
     }
+}
+
+/// Convert a raster master to a PDF/X-1a:2001 export.
+///
+/// Only opaque grayscale is admissible today: X-1a is a device grayscale/CMYK
+/// standard, and an RGB master would need a color-managed RGB→CMYK conversion
+/// that ForgeImages does not perform. Both inadmissible cases (RGB, and
+/// transparency) are refused by name rather than flattened or approximated.
+fn raster_to_pdf_x1a(
+    master: &SourceMaster,
+    export_id: &str,
+    size: [u32; 2],
+) -> Result<Vec<u8>, SourceMasterError> {
+    let decoded =
+        image::load_from_memory(&master.bytes).map_err(|e| SourceMasterError::PdfWriteFailed {
+            export_id: export_id.to_string(),
+            message: format!("could not decode master: {e}"),
+        })?;
+
+    // Reduce to opaque 8-bit grayscale samples, or refuse with the reason.
+    let gray: image::GrayImage = match decoded.color() {
+        image::ColorType::L8 => decoded.into_luma8(),
+        image::ColorType::La8 => {
+            let la = decoded.into_luma_alpha8();
+            // A fully-opaque alpha channel carries no information and can be
+            // dropped; a partially-transparent one cannot be honoured without
+            // inventing what shows through.
+            if la.pixels().any(|p| p[1] != u8::MAX) {
+                return Err(SourceMasterError::PrintTransparencyNotAllowed {
+                    export_id: export_id.to_string(),
+                });
+            }
+            let luma: Vec<u8> = la.pixels().map(|p| p[0]).collect();
+            image::GrayImage::from_raw(la.width(), la.height(), luma)
+                .expect("luma buffer has exactly width*height samples")
+        }
+        other => {
+            return Err(SourceMasterError::PrintColorNotAdmissible {
+                export_id: export_id.to_string(),
+                color_model: format!("{other:?}").to_lowercase(),
+            });
+        }
+    };
+
+    // Match the export spec. When it already matches, keep the pixels verbatim
+    // (no needless resample, and the samples embed byte-for-byte).
+    let gray = if gray.width() == size[0] && gray.height() == size[1] {
+        gray
+    } else {
+        image::imageops::resize(
+            &gray,
+            size[0],
+            size[1],
+            image::imageops::FilterType::Lanczos3,
+        )
+    };
+
+    let geometry = crate::pdf::PrintGeometry {
+        dpi: PRINT_DPI,
+        bleed_pts: KDP_BLEED_INCHES * 72.0,
+    };
+    crate::pdf::write_pdf_x1a(
+        size[0],
+        size[1],
+        gray.as_raw(),
+        crate::pdf::DeviceColor::Gray,
+        &geometry,
+        &crate::pdf::OutputIntent::kdp_us_swop(),
+    )
+    .map_err(|e| SourceMasterError::PdfWriteFailed {
+        export_id: export_id.to_string(),
+        message: e.to_string(),
+    })
 }
