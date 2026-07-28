@@ -44,6 +44,14 @@ pub enum PipelineError {
 
     #[error("Serialization error: {0}")]
     SerializationError(#[from] serde_json::Error),
+
+    /// A master was supplied and could not be honoured.
+    ///
+    /// Separate from `CompilationError` because it is never a partial outcome:
+    /// the compile is refused outright rather than completing with placeholder
+    /// exports that misrepresent the caller's master.
+    #[error("Source master rejected: {0}")]
+    SourceMasterRejected(#[from] crate::source_master::SourceMasterError),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -143,8 +151,26 @@ impl CompilationPipeline {
             return Err(PipelineError::ValidationFailed(messages.join("; ")));
         }
 
-        // Generate exports (simulated for now)
-        let exports = self.generate_exports(template, request)?;
+        // Ingest the caller's master, if one was supplied.
+        //
+        // This runs after validation (so a malformed asset is still reported as
+        // a validation failure first) but before any export is produced, so an
+        // inadmissible master costs nothing and is attributed precisely.
+        let master = match request.source_data.as_deref() {
+            Some(data) => {
+                let decoded = crate::source_master::decode(data)?;
+                crate::source_master::check_admissible(
+                    &decoded,
+                    template.vector_master,
+                    (request.asset_input.width, request.asset_input.height),
+                )?;
+                Some(decoded)
+            }
+            None => None,
+        };
+
+        // Generate exports (placeholder only when no master was supplied)
+        let exports = self.generate_exports(template, request, master.as_ref())?;
 
         // Build manifest
         let asset_id = Uuid::new_v4().to_string();
@@ -196,12 +222,12 @@ impl CompilationPipeline {
         &self,
         template: &Template,
         request: &CompileRequest,
+        master: Option<&crate::source_master::SourceMaster>,
     ) -> Result<Vec<ExportedFile>, PipelineError> {
         let mut exports = vec![];
 
         for spec in &template.exports {
-            // Generate placeholder data (in real impl, this would render the asset)
-            let data = self.render_export(spec, request)?;
+            let data = self.render_export(spec, request, master)?;
             let hash = crate::hashing::sha256_hex(&data);
 
             exports.push(ExportedFile {
@@ -221,11 +247,28 @@ impl CompilationPipeline {
         &self,
         spec: &ExportSpec,
         _request: &CompileRequest,
+        master: Option<&crate::source_master::SourceMaster>,
     ) -> Result<Vec<u8>, PipelineError> {
-        // Placeholder: In real implementation, this would:
-        // 1. Take the SVG master
-        // 2. Render to the target format at target size
-        // For now, return a minimal valid placeholder
+        // A supplied master is authoritative. If it cannot produce this export,
+        // the compile fails — it does NOT fall through to the placeholder below.
+        // Falling through is what made `source_data` a no-op: the caller got an
+        // asset unrelated to their master, with a job hash asserting otherwise.
+        if let Some(master) = master {
+            return Ok(crate::source_master::render_export(
+                master,
+                &spec.id,
+                spec.format.clone(),
+                spec.size,
+            )?);
+        }
+
+        // No master supplied — unchanged legacy behaviour.
+        //
+        // These are placeholders, not renders: an empty <svg> and a 1x1 PNG.
+        // Note that `book-cover-kdp` marks a PDF/X-1a export `required`, so this
+        // branch will hand back b"placeholder" for a file described as
+        // print-ready. That predates this change and is left alone here rather
+        // than silently widened; it is tracked as unimplemented rendering.
         match spec.format {
             crate::templates::ExportFormat::Svg => {
                 Ok(format!(

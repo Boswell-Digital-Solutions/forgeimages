@@ -89,6 +89,53 @@ The bridge service runs on `http://127.0.0.1:8100` (configurable via uvicorn).
 }
 ```
 
+### `source_data` — supplying a master
+
+`source_data` carries a base64 master asset. It is optional; when present it is
+**authoritative**, and the governing rule is:
+
+> A supplied master is never silently ignored. If it cannot be decoded, is not
+> admissible for the template, or cannot be converted to a required export, the
+> compile **fails**. It never falls back to the placeholder export.
+
+That rule exists because the opposite was previously true: `source_data` was
+accepted, transported and canonicalized into `job_hash`, but read by no code — so
+a caller who supplied a master received a placeholder asset accompanied by a hash
+asserting the master had been compiled.
+
+**Accepted masters** — SVG markup (tolerating a BOM/XML prolog), or a raster
+decodable by the enabled `image` features (PNG/JPEG/TIFF). Sniffing alone is not
+enough: the raster is fully decoded up front, so a truncated file carrying a
+valid magic number is rejected here rather than failing later during encoding.
+
+**Admissibility**, checked before any export is produced:
+
+| Condition | Result |
+|---|---|
+| Template declares `vectorMaster: true` and the master is raster | Refused — Law 1, *SVG Is Truth* |
+| `asset_input` dimensions differ from the master's real dimensions | Refused — validation ran against an asset that is not the one being compiled |
+
+**Conversions implemented** (both deterministic, Law 4):
+
+| Master | Export | Behaviour |
+|---|---|---|
+| SVG | `svg` | Pass-through |
+| Raster | `png` / `jpg`, size matches | Pass-through (no re-encode, so the hash stays stable) |
+| Raster | `png` / `jpg`, size differs | Lanczos3 resize + re-encode |
+
+Everything else — anything to `pdf` or `ico`, and raster↔vector — is **refused
+explicitly** rather than approximated. One consequence worth stating plainly:
+`book-cover-kdp` marks its PDF/X-1a export `required`, so a supplied cover master
+cannot satisfy that template until raster→PDF rendering exists. Refusing is
+deliberate; the alternative is emitting a "print-ready" file that is a
+placeholder.
+
+**When `source_data` is absent**, behaviour is unchanged: exports are placeholders
+(an empty `<svg>`, a 1x1 PNG, or `b"placeholder"`), because export *rendering* is
+still unimplemented. That predates this change and is not widened by it — but it
+does mean a no-master compile of `book-cover-kdp` still returns a placeholder for
+a file described as print-ready.
+
 ### Error Semantics
 
 | HTTP Status | Meaning | When |

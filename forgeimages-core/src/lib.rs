@@ -17,6 +17,7 @@ pub mod rules;
 pub mod file_validation;
 pub mod validation_outcome;
 pub mod cover_params;
+pub mod source_master;
 
 pub use templates::{Template, TemplateId, ExportSpec, AssetClass};
 pub use validation::{ValidationResult, ValidationRule, ValidationViolation, ViolationSeverity};
@@ -26,6 +27,7 @@ pub use pipeline::{CompilationPipeline, CompiledAsset, CompileRequest, PipelineE
 pub use validation_outcome::ValidationOutcome;
 pub use file_validation::{validate_from_file, FileValidationError};
 pub use cover_params::{CoverTemplateParams, ResolvedCoverDimensions, PaperStock};
+pub use source_master::{SourceMaster, SourceMasterError, SourceMasterKind};
 
 pub const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const MIN_TEMPLATE_VERSION: &str = "1.0.0";
