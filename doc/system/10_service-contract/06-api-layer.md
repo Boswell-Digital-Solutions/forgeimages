@@ -122,13 +122,17 @@ valid magic number is rejected here rather than failing later during encoding.
 | SVG | `svg` | Pass-through |
 | Raster | `png` / `jpg`, size matches | Pass-through (no re-encode, so the hash stays stable) |
 | Raster | `png` / `jpg`, size differs | Lanczos3 resize + re-encode |
+| Raster (opaque grayscale) | `pdf` | **PDF/X-1a:2001** via the deterministic writer (`pdf.rs`): the master is embedded at 300 DPI with `MediaBox`/`TrimBox`/`OutputIntent` and no transparency |
 
-Everything else — anything to `pdf` or `ico`, and raster↔vector — is **refused
-explicitly** rather than approximated. One consequence worth stating plainly:
-`book-cover-kdp` marks its PDF/X-1a export `required`, so a supplied cover master
-cannot satisfy that template until raster→PDF rendering exists. Refusing is
-deliberate; the alternative is emitting a "print-ready" file that is a
-placeholder.
+Everything else is **refused explicitly** rather than approximated: an SVG master
+to `pdf` (no rasterizer), raster→`ico`, and — the case that matters for covers —
+a **non-grayscale** raster to `pdf`. PDF/X-1a is a device grayscale/CMYK print
+standard, and turning an RGB diffusion master into CMYK is a color-managed step
+ForgeImages will not invent; it refuses with that reason rather than emit a
+"print-ready" file built on made-up color. So `book-cover-kdp` (whose PDF/X-1a
+export is `required`) now compiles from a supplied **grayscale** cover master and
+refuses precisely for an RGB one — the remaining gate is a chosen RGB→CMYK output
+intent, not a missing writer. See §7 for the writer's conformance boundary.
 
 **When `source_data` is absent**, behaviour is unchanged: exports are placeholders
 (an empty `<svg>`, a 1x1 PNG, or `b"placeholder"`), because export *rendering* is
