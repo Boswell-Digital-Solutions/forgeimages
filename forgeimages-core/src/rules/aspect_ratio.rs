@@ -31,9 +31,7 @@ impl ValidationRule for AspectRatioRule {
                     template.aspect_ratio[0], template.aspect_ratio[1]
                 )),
                 actual: Some(format!("{:.3}", actual)),
-                remediation: vec![
-                    "Crop or resize to match template aspect ratio".to_string()
-                ],
+                remediation: vec!["Crop or resize to match template aspect ratio".to_string()],
             }]
         } else {
             vec![]

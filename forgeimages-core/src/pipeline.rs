@@ -2,15 +2,15 @@
 //!
 //! CRITICAL: compile_asset MUST call validate internally. No bypass.
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use crate::templates::{Template, TemplateRegistry, ExportSpec};
-use crate::validation::{Validator, ValidationResult, AssetInput};
-use crate::hashing::{compute_manifest_hash, compute_job_hash};
 use crate::ENGINE_VERSION;
+use crate::hashing::{compute_job_hash, compute_manifest_hash};
+use crate::templates::{ExportSpec, Template, TemplateRegistry};
+use crate::validation::{AssetInput, ValidationResult, Validator};
 
 #[cfg(feature = "test-hooks")]
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -59,7 +59,7 @@ pub struct CompileRequest {
     pub template_id: String,
     pub asset_input: AssetInput,
     #[serde(default)]
-    pub source_data: Option<String>,  // Base64 encoded source
+    pub source_data: Option<String>, // Base64 encoded source
     #[serde(default)]
     pub seed: Option<u64>,
     #[serde(default)]
@@ -124,7 +124,9 @@ impl CompilationPipeline {
         #[cfg(feature = "test-hooks")]
         VALIDATION_CALL_COUNT.fetch_add(1, Ordering::SeqCst);
 
-        let template = self.registry.get(template_id)
+        let template = self
+            .registry
+            .get(template_id)
             .ok_or_else(|| PipelineError::TemplateNotFound(template_id.to_string()))?;
 
         // Check engine version compatibility
@@ -137,7 +139,9 @@ impl CompilationPipeline {
     ///
     /// CRITICAL: This ALWAYS calls validate_asset internally. No bypass possible.
     pub fn compile_asset(&self, request: &CompileRequest) -> Result<CompiledAsset, PipelineError> {
-        let template = self.registry.get(&request.template_id)
+        let template = self
+            .registry
+            .get(&request.template_id)
             .ok_or_else(|| PipelineError::TemplateNotFound(request.template_id.clone()))?;
 
         // MANDATORY: Validation is always called. This is non-negotiable.
@@ -145,7 +149,9 @@ impl CompilationPipeline {
 
         // If validation failed with errors, reject compilation
         if !validation.valid {
-            let messages: Vec<_> = validation.violations.iter()
+            let messages: Vec<_> = validation
+                .violations
+                .iter()
                 .map(|v| format!("{}: {}", v.rule, v.message))
                 .collect();
             return Err(PipelineError::ValidationFailed(messages.join("; ")));
@@ -189,7 +195,7 @@ impl CompilationPipeline {
             template_version: template.template_version.clone(),
             engine_version: ENGINE_VERSION.to_string(),
             created_at,
-            manifest_hash: String::new(),  // Computed after
+            manifest_hash: String::new(), // Computed after
             job_hash,
             validation,
             exports,
@@ -235,7 +241,10 @@ impl CompilationPipeline {
                 filename: format!("{}.{}", spec.id, format_extension(&spec.format)),
                 format: format!("{:?}", spec.format).to_lowercase(),
                 size: spec.size,
-                data_base64: base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &data),
+                data_base64: base64::Engine::encode(
+                    &base64::engine::general_purpose::STANDARD,
+                    &data,
+                ),
                 hash,
             });
         }
@@ -270,29 +279,23 @@ impl CompilationPipeline {
         // print-ready. That predates this change and is left alone here rather
         // than silently widened; it is tracked as unimplemented rendering.
         match spec.format {
-            crate::templates::ExportFormat::Svg => {
-                Ok(format!(
-                    r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {} {}"></svg>"#,
-                    spec.size[0], spec.size[1]
-                ).into_bytes())
-            }
+            crate::templates::ExportFormat::Svg => Ok(format!(
+                r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {} {}"></svg>"#,
+                spec.size[0], spec.size[1]
+            )
+            .into_bytes()),
             crate::templates::ExportFormat::Png => {
                 // Minimal 1x1 transparent PNG
                 Ok(vec![
-                    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
-                    0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
-                    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-                    0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
-                    0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41,
-                    0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
-                    0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00,
-                    0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
-                    0x42, 0x60, 0x82
+                    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49,
+                    0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06,
+                    0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44,
+                    0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00, 0x05, 0x00, 0x01, 0x0D,
+                    0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42,
+                    0x60, 0x82,
                 ])
             }
-            _ => {
-                Ok(b"placeholder".to_vec())
-            }
+            _ => Ok(b"placeholder".to_vec()),
         }
     }
 }

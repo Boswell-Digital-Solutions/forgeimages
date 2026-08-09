@@ -4,9 +4,9 @@
 //! Includes SourceType for provenance tracking (GAP-08) and AssetManifest
 //! for extended manifest metadata.
 
-use sha2::{Sha256, Digest};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, to_string};
+use sha2::{Digest, Sha256};
 
 /// Compute SHA-256 hash of bytes, return hex string
 pub fn sha256_hex(data: &[u8]) -> String {
@@ -34,10 +34,8 @@ fn sort_value(v: &Value) -> Value {
                 .collect();
             Value::Object(sorted_map)
         }
-        Value::Array(arr) => {
-            Value::Array(arr.iter().map(sort_value).collect())
-        }
-        _ => v.clone()
+        Value::Array(arr) => Value::Array(arr.iter().map(sort_value).collect()),
+        _ => v.clone(),
     }
 }
 
@@ -126,7 +124,11 @@ impl AssetManifest {
 // We need hex encoding
 mod hex {
     pub fn encode(bytes: impl AsRef<[u8]>) -> String {
-        bytes.as_ref().iter().map(|b| format!("{:02x}", b)).collect()
+        bytes
+            .as_ref()
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect()
     }
 }
 

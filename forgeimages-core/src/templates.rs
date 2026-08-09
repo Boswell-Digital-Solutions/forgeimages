@@ -30,7 +30,9 @@ pub struct Template {
     pub exports: Vec<ExportSpec>,
 }
 
-fn default_true() -> bool { true }
+fn default_true() -> bool {
+    true
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -89,7 +91,9 @@ pub struct RuleConfig {
     pub tolerance: f64,
 }
 
-fn default_tolerance() -> f64 { 0.01 }
+fn default_tolerance() -> f64 {
+    0.01
+}
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -102,8 +106,12 @@ pub struct ResolutionRule {
     pub min_height: u32,
 }
 
-fn default_min_width() -> u32 { 1024 }
-fn default_min_height() -> u32 { 1024 }
+fn default_min_width() -> u32 {
+    1024
+}
+fn default_min_height() -> u32 {
+    1024
+}
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ColorCountRule {
@@ -113,7 +121,9 @@ pub struct ColorCountRule {
     pub max: u32,
 }
 
-fn default_max_colors() -> u32 { 16 }
+fn default_max_colors() -> u32 {
+    16
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -143,7 +153,9 @@ pub struct TemplateRegistry {
 
 impl TemplateRegistry {
     pub fn new() -> Self {
-        Self { templates: HashMap::new() }
+        Self {
+            templates: HashMap::new(),
+        }
     }
 
     pub fn load_from_dir(dir: &Path) -> Result<Self, std::io::Error> {

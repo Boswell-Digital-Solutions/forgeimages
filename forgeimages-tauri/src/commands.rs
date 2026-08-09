@@ -5,11 +5,11 @@
 //! - forgeimages_validate_file: File-based validation (reads metadata from actual file)
 //! - forgeimages_validate_metadata: Metadata-based validation (JSON input, like bridge path)
 
-use serde::Serialize;
-use forgeimages_core::pipeline::CompilationPipeline;
-use forgeimages_core::validation::AssetInput;
-use forgeimages_core::templates::TemplateRegistry;
 use forgeimages_core::file_validation::validate_from_file;
+use forgeimages_core::pipeline::CompilationPipeline;
+use forgeimages_core::templates::TemplateRegistry;
+use forgeimages_core::validation::AssetInput;
+use serde::Serialize;
 
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -88,8 +88,8 @@ pub fn forgeimages_validate_metadata(
 
 /// Initialize ForgeImages state with templates loaded from a directory
 pub fn init_state(templates_dir: PathBuf) -> ForgeImagesState {
-    let registry = TemplateRegistry::load_from_dir(&templates_dir)
-        .unwrap_or_else(|_| TemplateRegistry::new());
+    let registry =
+        TemplateRegistry::load_from_dir(&templates_dir).unwrap_or_else(|_| TemplateRegistry::new());
     ForgeImagesState {
         pipeline: Mutex::new(CompilationPipeline::new(registry)),
     }

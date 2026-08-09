@@ -7,9 +7,9 @@
 //! - Agent/bridge path: JSON metadata (AssetInput) — stateless, fast, over HTTP
 //! - Desktop/Tauri path: File path — reads actual DPI, dimensions, format from disk
 
-use std::path::Path;
-use image::ImageReader;
 use crate::validation::AssetInput;
+use image::ImageReader;
+use std::path::Path;
 
 /// Read image metadata from a file and return an AssetInput suitable for validation.
 ///
@@ -22,15 +22,14 @@ pub fn validate_from_file(path: &Path) -> Result<AssetInput, FileValidationError
         ));
     }
 
-    let reader = ImageReader::open(path).map_err(|e| {
-        FileValidationError::ReadError(format!("{}: {}", path.display(), e))
-    })?;
+    let reader = ImageReader::open(path)
+        .map_err(|e| FileValidationError::ReadError(format!("{}: {}", path.display(), e)))?;
 
     let format = reader.format().map(|f| format!("{:?}", f).to_lowercase());
 
-    let img = reader.decode().map_err(|e| {
-        FileValidationError::DecodeError(format!("{}: {}", path.display(), e))
-    })?;
+    let img = reader
+        .decode()
+        .map_err(|e| FileValidationError::DecodeError(format!("{}: {}", path.display(), e)))?;
 
     let (width, height) = (img.width(), img.height());
 

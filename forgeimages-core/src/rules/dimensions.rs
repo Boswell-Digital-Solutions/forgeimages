@@ -50,12 +50,12 @@ impl ValidationRule for DimensionMatchRule {
                 rule: self.name().to_string(),
                 severity: ViolationSeverity::Error,
                 message: "Width does not match expected dimensions".to_string(),
-                expected: Some(format!("{}px (±{}px)", self.expected_width, self.tolerance_px)),
+                expected: Some(format!(
+                    "{}px (±{}px)",
+                    self.expected_width, self.tolerance_px
+                )),
                 actual: Some(format!("{}px", input.width)),
-                remediation: vec![format!(
-                    "Resize to {}px width",
-                    self.expected_width
-                )],
+                remediation: vec![format!("Resize to {}px width", self.expected_width)],
             });
         }
 
@@ -64,12 +64,12 @@ impl ValidationRule for DimensionMatchRule {
                 rule: self.name().to_string(),
                 severity: ViolationSeverity::Error,
                 message: "Height does not match expected dimensions".to_string(),
-                expected: Some(format!("{}px (±{}px)", self.expected_height, self.tolerance_px)),
+                expected: Some(format!(
+                    "{}px (±{}px)",
+                    self.expected_height, self.tolerance_px
+                )),
                 actual: Some(format!("{}px", input.height)),
-                remediation: vec![format!(
-                    "Resize to {}px height",
-                    self.expected_height
-                )],
+                remediation: vec![format!("Resize to {}px height", self.expected_height)],
             });
         }
 
