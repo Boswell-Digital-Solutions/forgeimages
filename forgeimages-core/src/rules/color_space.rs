@@ -53,7 +53,10 @@ impl ValidationRule for ColorSpaceRule {
         // Simple heuristic: check if the format string contains a color space indicator
         let detected_space = if format_lower.contains("cmyk") {
             "cmyk"
-        } else if format_lower.contains("rgb") || format_lower.contains("png") || format_lower.contains("jpeg") {
+        } else if format_lower.contains("rgb")
+            || format_lower.contains("png")
+            || format_lower.contains("jpeg")
+        {
             "rgb"
         } else {
             return vec![]; // Can't determine, skip

@@ -9,9 +9,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use forgeimages_core::{
-    CompilationPipeline, CompileRequest,
-    validation::AssetInput,
-    templates::TemplateRegistry,
+    CompilationPipeline, CompileRequest, templates::TemplateRegistry, validation::AssetInput,
 };
 
 #[derive(Parser)]
@@ -70,15 +68,18 @@ fn main() -> ExitCode {
 
     match cli.command {
         Commands::Templates => {
-            let templates: Vec<_> = pipeline.list_templates()
+            let templates: Vec<_> = pipeline
+                .list_templates()
                 .iter()
-                .map(|t| serde_json::json!({
-                    "id": t.id,
-                    "name": t.name,
-                    "version": t.template_version,
-                    "asset_class": t.asset_class,
-                    "deprecated": t.deprecated,
-                }))
+                .map(|t| {
+                    serde_json::json!({
+                        "id": t.id,
+                        "name": t.name,
+                        "version": t.template_version,
+                        "asset_class": t.asset_class,
+                        "deprecated": t.deprecated,
+                    })
+                })
                 .collect();
 
             println!("{}", serde_json::to_string_pretty(&templates).unwrap());
@@ -100,7 +101,7 @@ fn main() -> ExitCode {
                     if result.valid {
                         ExitCode::SUCCESS
                     } else {
-                        ExitCode::from(2)  // Validation failure
+                        ExitCode::from(2) // Validation failure
                     }
                 }
                 Err(e) => {
@@ -140,7 +141,7 @@ fn main() -> ExitCode {
                         "error": e.to_string(),
                     });
                     println!("{}", serde_json::to_string(&output).unwrap());
-                    ExitCode::from(2)  // Compilation failure (validation)
+                    ExitCode::from(2) // Compilation failure (validation)
                 }
             }
         }

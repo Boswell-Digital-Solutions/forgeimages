@@ -3,8 +3,8 @@
 //! Rules produce structured violations.
 //! Policy maps violations to actions.
 
+use crate::templates::{FailureMode, Template};
 use serde::{Deserialize, Serialize};
-use crate::templates::{Template, FailureMode};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -56,7 +56,9 @@ impl ValidationResult {
     }
 
     pub fn has_errors(&self) -> bool {
-        self.violations.iter().any(|v| v.severity == ViolationSeverity::Error)
+        self.violations
+            .iter()
+            .any(|v| v.severity == ViolationSeverity::Error)
     }
 }
 
@@ -82,7 +84,9 @@ pub struct AssetInput {
 pub struct AspectRatioRule;
 
 impl ValidationRule for AspectRatioRule {
-    fn name(&self) -> &'static str { "aspect_ratio" }
+    fn name(&self) -> &'static str {
+        "aspect_ratio"
+    }
 
     fn validate(&self, input: &AssetInput, template: &Template) -> Vec<ValidationViolation> {
         if !template.validation.rules.aspect_ratio.enabled {
@@ -98,7 +102,10 @@ impl ValidationRule for AspectRatioRule {
                 rule: self.name().to_string(),
                 severity: ViolationSeverity::Error,
                 message: format!("Aspect ratio mismatch"),
-                expected: Some(format!("{}:{}", template.aspect_ratio[0], template.aspect_ratio[1])),
+                expected: Some(format!(
+                    "{}:{}",
+                    template.aspect_ratio[0], template.aspect_ratio[1]
+                )),
                 actual: Some(format!("{:.3}", actual)),
                 remediation: vec!["Crop or resize to match template aspect ratio".to_string()],
             }]
@@ -111,7 +118,9 @@ impl ValidationRule for AspectRatioRule {
 pub struct ResolutionRule;
 
 impl ValidationRule for ResolutionRule {
-    fn name(&self) -> &'static str { "resolution" }
+    fn name(&self) -> &'static str {
+        "resolution"
+    }
 
     fn validate(&self, input: &AssetInput, template: &Template) -> Vec<ValidationViolation> {
         if !template.validation.rules.resolution.enabled {
@@ -140,7 +149,9 @@ impl ValidationRule for ResolutionRule {
 pub struct ColorCountRule;
 
 impl ValidationRule for ColorCountRule {
-    fn name(&self) -> &'static str { "color_count" }
+    fn name(&self) -> &'static str {
+        "color_count"
+    }
 
     fn validate(&self, input: &AssetInput, template: &Template) -> Vec<ValidationViolation> {
         if !template.validation.rules.color_count.enabled {
@@ -194,16 +205,16 @@ impl Validator {
         }
 
         // Apply failure mode policy
-        let has_errors = all_violations.iter()
+        let has_errors = all_violations
+            .iter()
             .any(|v| v.severity == ViolationSeverity::Error);
 
         match template.validation.failure_mode {
-            FailureMode::Block if has_errors => {
-                ValidationResult::failure(template, all_violations)
-            }
+            FailureMode::Block if has_errors => ValidationResult::failure(template, all_violations),
             FailureMode::Block => {
                 // Warnings don't block
-                let errors: Vec<_> = all_violations.into_iter()
+                let errors: Vec<_> = all_violations
+                    .into_iter()
                     .filter(|v| v.severity == ViolationSeverity::Error)
                     .collect();
                 if errors.is_empty() {

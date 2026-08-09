@@ -5,15 +5,15 @@
 //! and re-exported here. New rules for Cover Forge are added alongside them.
 
 pub mod aspect_ratio;
-pub mod resolution;
 pub mod color_count;
-pub mod dimensions;
 pub mod color_space;
+pub mod dimensions;
 pub mod file_size;
+pub mod resolution;
 
 pub use aspect_ratio::AspectRatioRule;
-pub use resolution::ResolutionRule as ResolutionCheckRule;
 pub use color_count::ColorCountRule as ColorCountCheckRule;
-pub use dimensions::DimensionMatchRule;
 pub use color_space::ColorSpaceRule;
+pub use dimensions::DimensionMatchRule;
 pub use file_size::FileSizeRule;
+pub use resolution::ResolutionRule as ResolutionCheckRule;

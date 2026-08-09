@@ -4,9 +4,12 @@
 
 use forgeimages_core::{
     CompilationPipeline, CompileRequest,
-    templates::{Template, TemplateRegistry, AssetClass, ValidationConfig, ValidationRules, RuleConfig, ResolutionRule, FailureMode, ExportSpec, ExportFormat},
-    validation::AssetInput,
     hashing::canonical_json,
+    templates::{
+        AssetClass, ExportFormat, ExportSpec, FailureMode, ResolutionRule, RuleConfig, Template,
+        TemplateRegistry, ValidationConfig, ValidationRules,
+    },
+    validation::AssetInput,
 };
 
 fn create_test_template() -> Template {
@@ -38,15 +41,13 @@ fn create_test_template() -> Template {
                 color_count: Default::default(),
             },
         },
-        exports: vec![
-            ExportSpec {
-                id: "master".to_string(),
-                description: "SVG master".to_string(),
-                size: [1024, 1024],
-                format: ExportFormat::Svg,
-                required: true,
-            }
-        ],
+        exports: vec![ExportSpec {
+            id: "master".to_string(),
+            description: "SVG master".to_string(),
+            size: [1024, 1024],
+            format: ExportFormat::Svg,
+            required: true,
+        }],
     }
 }
 
@@ -68,7 +69,7 @@ fn invariant_compile_calls_validate() {
         template_id: "test-icon".to_string(),
         asset_input: AssetInput {
             width: 1024,
-            height: 512,  // Not 1:1!
+            height: 512, // Not 1:1!
             color_count: None,
             format: None,
         },
@@ -124,7 +125,7 @@ fn invariant_manifest_hash_stable() {
             format: None,
         },
         source_data: None,
-        seed: Some(42),  // Fixed seed for determinism
+        seed: Some(42), // Fixed seed for determinism
         prompt: Some("test".to_string()),
     };
 
@@ -175,7 +176,12 @@ fn invariant_template_not_found_error() {
 
     let result = pipeline.compile_asset(&request);
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("Template not found"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("Template not found")
+    );
 }
 
 #[test]
@@ -183,7 +189,7 @@ fn invariant_validation_result_structure() {
     let pipeline = create_pipeline();
 
     let input = AssetInput {
-        width: 100,  // Too small
+        width: 100, // Too small
         height: 100,
         color_count: None,
         format: None,

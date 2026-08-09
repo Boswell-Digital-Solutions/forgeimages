@@ -6,8 +6,8 @@
 //! WHERE print specifications come from (System | Template | User).
 //! ValidationOutcome determines the PERMISSION LEVEL of the validated asset.
 
-use serde::{Deserialize, Serialize};
 use crate::validation::ValidationResult;
+use serde::{Deserialize, Serialize};
 
 /// The permission level / clearance of a validated asset.
 ///
