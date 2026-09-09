@@ -1,5 +1,8 @@
 # ForgeImages — Claude Code Context
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this
+repository.
+
 Template-driven deterministic image-asset validation and compilation with audit manifests.
 Rust core engine + CLI (`forgeimages-core/`), Python agent bridge and skill
 (`forgeagents-forgeimages/`).
