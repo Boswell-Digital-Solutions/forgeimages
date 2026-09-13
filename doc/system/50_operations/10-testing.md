@@ -5,8 +5,9 @@
 | Layer | Tests | File | Framework |
 |-------|-------|------|-----------|
 | Rust invariants | 6 | `forgeimages-core/tests/invariants.rs` | cargo test |
-| Rust inline | 3 | `forgeimages-core/src/hashing.rs` | cargo test |
-| Python boundaries | 20+ | `forgeagents-forgeimages/tests/test_agent_boundary.py` | pytest |
+| Rust core | 48 | inline + `forgeimages-core/tests/` | cargo test |
+| Python agent boundaries | 18 | `forgeagents-forgeimages/tests/test_agent_boundary.py` | pytest |
+| Cloud validation contracts | 18 | `test_forgeimages_validation_contracts.py`, `test_forgeimages_rejection_report_contract.py` | pytest |
 
 ## Rust Invariant Tests
 
@@ -74,6 +75,19 @@ These tests verify that agents cannot bypass ForgeImages' enforcement mechanisms
 - AssetInput requires dimensions
 - Skill always calls bridge (no local bypass)
 
+## Cloud-Fulfillment Contract Tests
+
+The Slice 01 tests prove that:
+
+- request and result schema versions are required and exact
+- every top-level transport envelope field is required
+- naive timestamps and unrecognized fields fail closed
+- result counts cannot diverge from accepted/rejected record lists
+- all 15 governed rejection codes round-trip as enums
+- unknown rejection codes fail closed
+- rejection guidance survives JSON round trips
+- the contract module imports without generation-provider dependencies
+
 ## Running Tests
 
 ```bash
@@ -85,6 +99,11 @@ cd forgeimages-core && cargo test --test invariants
 
 # Python tests
 cd forgeagents-forgeimages && pytest tests/ -v
+
+# Cloud-fulfillment Slice 01 only
+cd forgeagents-forgeimages && \
+  pytest tests/test_forgeimages_validation_contracts.py \
+         tests/test_forgeimages_rejection_report_contract.py -q
 
 # Python tests with coverage
 cd forgeagents-forgeimages && pytest tests/ -v --cov=bridge --cov=skill

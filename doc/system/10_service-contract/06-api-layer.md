@@ -161,6 +161,36 @@ a file described as print-ready.
 | `X-User-ID` | Request | Optional user identification for audit trail |
 | `Content-Type` | Both | `application/json` |
 
+## NeuroForge Cloud-Fulfillment Contracts (Slice 01)
+
+`bridge/cloud_fulfillment_contracts.py` defines the provider-free JSON boundary
+that a later route will use. No endpoint is added in Slice 01.
+
+Top-level payloads carry `schema_version`, `correlation_id`,
+`idempotency_key`, `source_service`, `target_service`, and timezone-aware
+`created_at` metadata. Unknown schema versions, unknown rejection codes,
+unrecognized fields, naive timestamps, or inconsistent result counts fail
+Pydantic validation.
+
+| Contract | Schema version | Direction |
+|---|---|---|
+| `ForgeImagesValidationRequestV1` | `forgeimages_validation_request.v1` | NeuroForge → ForgeImages |
+| `ForgeImagesValidationResultV1` | `forgeimages_validation_result.v1` | ForgeImages → NeuroForge |
+
+The request contains service-owned candidate artifact references and a
+validation profile. The result contains accepted candidates, structured
+rejections, replacement counts, compiled-asset summaries, and an optional
+manifest URI. Provider details are neither accepted nor returned by this
+contract.
+
+Rejections use `soft_fail` or `hard_fail` severity and one of these stable
+codes: `safe_zone_failed`, `aspect_ratio_invalid`, `resolution_too_low`,
+`subject_cutoff`, `subject_too_close_to_edge`, `template_slot_failed`,
+`text_area_blocked`, `unwanted_text_present`, `crop_not_viable`,
+`composition_not_asset_ready`, `brand_layout_failed`, `file_decode_failed`,
+`unsupported_format`, `transparency_required_missing`, or
+`unknown_validation_failure`.
+
 ## CLI Subcommands
 
 The Rust CLI is invoked by the bridge as a subprocess. It is also usable directly.

@@ -36,10 +36,17 @@ The HTTP gateway between agents and the Rust engine. Handles request validation 
 
 **Bridge responsibilities:**
 - Pydantic input validation (dimensions 1-10000, template ID format)
+- Versioned NeuroForge validation request/result contracts with fail-closed schema and enum handling
 - Audit logging with job hash linkage
 - CLI subprocess execution with 30-second timeout
 - Structured error responses (422 with violations + remediation)
 - Request size limiting
+
+The cloud-image fulfillment contract is an inbound production-validation
+boundary only. NeuroForge owns cloud generation and the fulfillment saga;
+ForgeImages owns deterministic validation and compilation. ForgeImages does not
+select or invoke generation providers. Slice 01 defines the transport models but
+does not expose a new route or perform validation work.
 
 ### Layer 3: Core Engine (Rust — `forgeimages-core/`)
 
@@ -120,3 +127,4 @@ Templates are versioned via semver. The engine checks `engineMinVersion` against
 | Append-only audit log | Legal defensibility; no mutation of historical records |
 | Base64 export data | No file paths cross the trust boundary; data is self-contained |
 | Canonical JSON hashing | Platform-independent determinism for manifest verification |
+| Mirrored v1 fulfillment contracts | NeuroForge and ForgeImages exchange strict JSON without sharing runtime dependencies |
