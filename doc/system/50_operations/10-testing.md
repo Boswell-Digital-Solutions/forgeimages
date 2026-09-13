@@ -8,6 +8,7 @@
 | Rust core | 48 | inline + `forgeimages-core/tests/` | cargo test |
 | Python agent boundaries | 18 | `forgeagents-forgeimages/tests/test_agent_boundary.py` | pytest |
 | Cloud validation contracts | 18 | `test_forgeimages_validation_contracts.py`, `test_forgeimages_rejection_report_contract.py` | pytest |
+| Cloud validator and manifests | 14 | `test_forgeimages_asset_validator.py`, `test_forgeimages_asset_manifest.py` | pytest |
 
 ## Rust Invariant Tests
 
@@ -88,6 +89,20 @@ The Slice 01 tests prove that:
 - rejection guidance survives JSON round trips
 - the contract module imports without generation-provider dependencies
 
+## Cloud Validator and Manifest Tests
+
+The Slice 02 tests prove that:
+
+- valid artifacts are accepted while unsupported formats, low resolution, and
+  bad aspect ratio receive stable rejection codes
+- production-configured services reject test-only metadata
+- force-reject, safe-zone, and crop placeholder signals are deterministic
+- replacement counts include only hard failures
+- validation and idempotency identifiers are stable
+- manifest list ordering and hashing are deterministic
+- tampered manifest content fails digest verification
+- validator/profile/manifest modules have no generation-client imports
+
 ## Running Tests
 
 ```bash
@@ -104,6 +119,11 @@ cd forgeagents-forgeimages && pytest tests/ -v
 cd forgeagents-forgeimages && \
   pytest tests/test_forgeimages_validation_contracts.py \
          tests/test_forgeimages_rejection_report_contract.py -q
+
+# Cloud-fulfillment Slice 02 only
+cd forgeagents-forgeimages && \
+  pytest tests/test_forgeimages_asset_validator.py \
+         tests/test_forgeimages_asset_manifest.py -q
 
 # Python tests with coverage
 cd forgeagents-forgeimages && pytest tests/ -v --cov=bridge --cov=skill

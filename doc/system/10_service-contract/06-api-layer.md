@@ -164,7 +164,9 @@ a file described as print-ready.
 ## NeuroForge Cloud-Fulfillment Contracts (Slice 01)
 
 `bridge/cloud_fulfillment_contracts.py` defines the provider-free JSON boundary
-that a later route will use. No endpoint is added in Slice 01.
+that a later route will use. No cloud-fulfillment endpoint is exposed through
+Slice 02: durable manifest storage and artifact-byte access do not yet exist,
+and the service must not advertise an unresolvable production result.
 
 Top-level payloads carry `schema_version`, `correlation_id`,
 `idempotency_key`, `source_service`, `target_service`, and timezone-aware
@@ -190,6 +192,31 @@ codes: `safe_zone_failed`, `aspect_ratio_invalid`, `resolution_too_low`,
 `composition_not_asset_ready`, `brand_layout_failed`, `file_decode_failed`,
 `unsupported_format`, `transparency_required_missing`, or
 `unknown_validation_failure`.
+
+### Slice 02 offline validation service
+
+`DeterministicCloudAssetValidator.validate()` accepts a parsed
+`ForgeImagesValidationRequestV1` and returns a
+`CloudAssetValidationOutput` containing the versioned result and an inline,
+self-verifying `ForgeImagesAssetManifestV1`.
+
+The initial checks execute in a stable order: supported MIME type, minimum
+resolution, expected aspect ratio, controlled force-reject metadata, optional
+safe-zone signal, then optional crop-viability signal. One primary rejection is
+reported per artifact. `replacement_count` equals the number of `hard_fail`
+rejections; soft failures remain reported but do not request replacement.
+
+Production validator instances reject test metadata. Tests must explicitly
+construct the service with `allow_test_metadata=True`. The default service
+accepts PNG, JPEG, and TIFF because those are the raster formats currently
+decoded by the Rust core; WebP therefore fails closed as `unsupported_format`.
+
+The manifest records validation/job lineage, sorted accepted and rejected
+artifact identifiers, template/profile identifiers, compiled asset IDs, export
+variants, and a SHA-256 digest of canonical compact JSON. Slice 02 leaves
+compiled asset IDs and export variants empty and returns no `manifest_uri`
+because compilation and durable manifest persistence are not implemented by
+this slice.
 
 ## CLI Subcommands
 
