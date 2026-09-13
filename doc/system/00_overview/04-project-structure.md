@@ -58,6 +58,7 @@ ForgeImages/
     ├── pyproject.toml                 # Package: forgeagents-forgeimages v1.0.0, Python >=3.10
     ├── bridge/                        # FastAPI bridge service
     │   ├── __init__.py                # Package init
+    │   ├── cloud_fulfillment_contracts.py # Versioned NeuroForge validation contracts
     │   ├── forgeimages_bridge.py      # HTTP endpoints (health, templates, validate, compile)
     │   ├── models.py                  # Pydantic v2 models (AssetInput, CompileRequest, etc.)
     │   ├── settings.py                # Configuration (FORGEIMAGES_ env prefix)
@@ -66,7 +67,9 @@ ForgeImages/
     │   ├── __init__.py                # Package init
     │   └── forgeimages_skill.py       # ForgeImagesSkill class (async httpx client)
     └── tests/
-        └── test_agent_boundary.py     # Agent boundary enforcement tests (20+ tests)
+        ├── test_agent_boundary.py     # Agent boundary enforcement tests
+        ├── test_forgeimages_validation_contracts.py
+        └── test_forgeimages_rejection_report_contract.py
 ```
 
 ## Key Module Responsibilities
@@ -88,6 +91,7 @@ ForgeImages/
 | Module | LOC | Responsibility |
 |--------|-----|----------------|
 | `models.py` | 93 | Pydantic v2 models mirroring Rust types |
+| `cloud_fulfillment_contracts.py` | — | Strict v1 validation request, result, rejection, and compiled-asset records |
 | `settings.py` | 33 | Environment-based config (FORGEIMAGES_ prefix) |
 | `audit.py` | 105 | Append-only JSONL audit log with job hash linkage |
 | `forgeimages_bridge.py` | 272 | FastAPI app with 5 endpoints, CLI subprocess calls |

@@ -67,9 +67,16 @@ curl -X POST http://localhost:8100/validate/pwa-icon \
 - [x] Skill wrapper (async httpx client with error handling)
 - [x] Audit logging (append-only JSONL with job_hash)
 - [x] Invariant tests (6 Rust contract tests)
-- [x] Boundary tests (20+ Python enforcement tests)
+- [x] Boundary tests (18 Python enforcement tests)
+- [x] Cloud-fulfillment Slice 01 validation and rejection contracts
 - [ ] Tauri integration for VibeForge
 - [ ] MCP tool definitions
+
+The Slice 01 contracts are offline seams: no NeuroForge-facing validation route,
+validator orchestration, asset manifest generation, replacement loop, or cloud
+generation dependency is implemented by this slice. The next governed work is
+ForgeImages Slice 02, which connects deterministic validator rules and manifests
+to these contracts.
 
 ## Future Work
 

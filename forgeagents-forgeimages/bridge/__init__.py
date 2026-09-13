@@ -15,6 +15,17 @@ from .models import (
     ExportedFile,
     TemplateInfo,
 )
+from .cloud_fulfillment_contracts import (
+    FORGEIMAGES_VALIDATION_REQUEST_SCHEMA_V1,
+    FORGEIMAGES_VALIDATION_RESULT_SCHEMA_V1,
+    CandidateArtifactRefV1,
+    CompiledAssetSummaryV1,
+    ForgeImagesRejectedArtifactV1,
+    ForgeImagesRejectionCode,
+    ForgeImagesValidationRequestV1,
+    ForgeImagesValidationResultV1,
+    RejectionSeverity,
+)
 from .forgeimages_bridge import app
 from .audit import AuditLogger, AuditEntry
 from .settings import settings, Settings
@@ -29,6 +40,16 @@ __all__ = [
     "CompiledAsset",
     "ExportedFile",
     "TemplateInfo",
+    # Cloud fulfillment contracts
+    "FORGEIMAGES_VALIDATION_REQUEST_SCHEMA_V1",
+    "FORGEIMAGES_VALIDATION_RESULT_SCHEMA_V1",
+    "CandidateArtifactRefV1",
+    "CompiledAssetSummaryV1",
+    "ForgeImagesRejectedArtifactV1",
+    "ForgeImagesRejectionCode",
+    "ForgeImagesValidationRequestV1",
+    "ForgeImagesValidationResultV1",
+    "RejectionSeverity",
     # App
     "app",
     # Audit

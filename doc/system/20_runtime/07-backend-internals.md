@@ -210,3 +210,17 @@ Append-only JSONL format. Each entry contains:
 | `error_message` | string? | Error details if outcome is "error" |
 
 The audit logger computes `job_hash` using the same algorithm as the Rust engine, ensuring cross-layer linkage.
+
+## Cloud-Fulfillment Contract Boundary
+
+`bridge/cloud_fulfillment_contracts.py` is deliberately isolated from the Rust
+compilation pipeline. It validates the v1 transport envelope and nested record
+shape before later slices connect those records to deterministic validation.
+The module imports only standard-library typing/date primitives and Pydantic;
+it has no cloud generation client dependency.
+
+Request service identities are locked to `neuroforge` → `forgeimages`; result
+identities are locked to `forgeimages` → `neuroforge`. Exact `Literal` schema
+versions and enum-backed rejection codes make peer drift fail closed. Result
+model validation also requires accepted/rejected counts to match their lists
+and replacement flags to match the replacement count.

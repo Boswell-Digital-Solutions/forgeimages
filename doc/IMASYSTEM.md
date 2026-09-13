@@ -176,10 +176,17 @@ The HTTP gateway between agents and the Rust engine. Handles request validation 
 
 **Bridge responsibilities:**
 - Pydantic input validation (dimensions 1-10000, template ID format)
+- Versioned NeuroForge validation request/result contracts with fail-closed schema and enum handling
 - Audit logging with job hash linkage
 - CLI subprocess execution with 30-second timeout
 - Structured error responses (422 with violations + remediation)
 - Request size limiting
+
+The cloud-image fulfillment contract is an inbound production-validation
+boundary only. NeuroForge owns cloud generation and the fulfillment saga;
+ForgeImages owns deterministic validation and compilation. ForgeImages does not
+select or invoke generation providers. Slice 01 defines the transport models but
+does not expose a new route or perform validation work.
 
 ### Layer 3: Core Engine (Rust — `forgeimages-core/`)
 
@@ -260,6 +267,7 @@ Templates are versioned via semver. The engine checks `engineMinVersion` against
 | Append-only audit log | Legal defensibility; no mutation of historical records |
 | Base64 export data | No file paths cross the trust boundary; data is self-contained |
 | Canonical JSON hashing | Platform-independent determinism for manifest verification |
+| Mirrored v1 fulfillment contracts | NeuroForge and ForgeImages exchange strict JSON without sharing runtime dependencies |
 
 ---
 
@@ -323,6 +331,7 @@ ForgeImages/
     ├── pyproject.toml                 # Package: forgeagents-forgeimages v1.0.0, Python >=3.10
     ├── bridge/                        # FastAPI bridge service
     │   ├── __init__.py                # Package init
+    │   ├── cloud_fulfillment_contracts.py # Versioned NeuroForge validation contracts
     │   ├── forgeimages_bridge.py      # HTTP endpoints (health, templates, validate, compile)
     │   ├── models.py                  # Pydantic v2 models (AssetInput, CompileRequest, etc.)
     │   ├── settings.py                # Configuration (FORGEIMAGES_ env prefix)
@@ -331,7 +340,9 @@ ForgeImages/
     │   ├── __init__.py                # Package init
     │   └── forgeimages_skill.py       # ForgeImagesSkill class (async httpx client)
     └── tests/
-        └── test_agent_boundary.py     # Agent boundary enforcement tests (20+ tests)
+        ├── test_agent_boundary.py     # Agent boundary enforcement tests
+        ├── test_forgeimages_validation_contracts.py
+        └── test_forgeimages_rejection_report_contract.py
 ```
 
 ## Key Module Responsibilities
@@ -353,6 +364,7 @@ ForgeImages/
 | Module | LOC | Responsibility |
 |--------|-----|----------------|
 | `models.py` | 93 | Pydantic v2 models mirroring Rust types |
+| `cloud_fulfillment_contracts.py` | — | Strict v1 validation request, result, rejection, and compiled-asset records |
 | `settings.py` | 33 | Environment-based config (FORGEIMAGES_ prefix) |
 | `audit.py` | 105 | Append-only JSONL audit log with job hash linkage |
 | `forgeimages_bridge.py` | 272 | FastAPI app with 5 endpoints, CLI subprocess calls |
@@ -522,6 +534,36 @@ a file described as print-ready.
 |--------|-----------|---------|
 | `X-User-ID` | Request | Optional user identification for audit trail |
 | `Content-Type` | Both | `application/json` |
+
+## NeuroForge Cloud-Fulfillment Contracts (Slice 01)
+
+`bridge/cloud_fulfillment_contracts.py` defines the provider-free JSON boundary
+that a later route will use. No endpoint is added in Slice 01.
+
+Top-level payloads carry `schema_version`, `correlation_id`,
+`idempotency_key`, `source_service`, `target_service`, and timezone-aware
+`created_at` metadata. Unknown schema versions, unknown rejection codes,
+unrecognized fields, naive timestamps, or inconsistent result counts fail
+Pydantic validation.
+
+| Contract | Schema version | Direction |
+|---|---|---|
+| `ForgeImagesValidationRequestV1` | `forgeimages_validation_request.v1` | NeuroForge → ForgeImages |
+| `ForgeImagesValidationResultV1` | `forgeimages_validation_result.v1` | ForgeImages → NeuroForge |
+
+The request contains service-owned candidate artifact references and a
+validation profile. The result contains accepted candidates, structured
+rejections, replacement counts, compiled-asset summaries, and an optional
+manifest URI. Provider details are neither accepted nor returned by this
+contract.
+
+Rejections use `soft_fail` or `hard_fail` severity and one of these stable
+codes: `safe_zone_failed`, `aspect_ratio_invalid`, `resolution_too_low`,
+`subject_cutoff`, `subject_too_close_to_edge`, `template_slot_failed`,
+`text_area_blocked`, `unwanted_text_present`, `crop_not_viable`,
+`composition_not_asset_ready`, `brand_layout_failed`, `file_decode_failed`,
+`unsupported_format`, `transparency_required_missing`, or
+`unknown_validation_failure`.
 
 ## CLI Subcommands
 
@@ -779,6 +821,20 @@ Append-only JSONL format. Each entry contains:
 | `error_message` | string? | Error details if outcome is "error" |
 
 The audit logger computes `job_hash` using the same algorithm as the Rust engine, ensuring cross-layer linkage.
+
+## Cloud-Fulfillment Contract Boundary
+
+`bridge/cloud_fulfillment_contracts.py` is deliberately isolated from the Rust
+compilation pipeline. It validates the v1 transport envelope and nested record
+shape before later slices connect those records to deterministic validation.
+The module imports only standard-library typing/date primitives and Pydantic;
+it has no cloud generation client dependency.
+
+Request service identities are locked to `neuroforge` → `forgeimages`; result
+identities are locked to `forgeimages` → `neuroforge`. Exact `Literal` schema
+versions and enum-backed rejection codes make peer drift fail closed. Result
+model validation also requires accepted/rejected counts to match their lists
+and replacement flags to match the replacement count.
 
 ---
 
@@ -1236,8 +1292,9 @@ Templates are JSON files in the templates directory. Each template defines:
 | Layer | Tests | File | Framework |
 |-------|-------|------|-----------|
 | Rust invariants | 6 | `forgeimages-core/tests/invariants.rs` | cargo test |
-| Rust inline | 3 | `forgeimages-core/src/hashing.rs` | cargo test |
-| Python boundaries | 20+ | `forgeagents-forgeimages/tests/test_agent_boundary.py` | pytest |
+| Rust core | 48 | inline + `forgeimages-core/tests/` | cargo test |
+| Python agent boundaries | 18 | `forgeagents-forgeimages/tests/test_agent_boundary.py` | pytest |
+| Cloud validation contracts | 18 | `test_forgeimages_validation_contracts.py`, `test_forgeimages_rejection_report_contract.py` | pytest |
 
 ## Rust Invariant Tests
 
@@ -1305,6 +1362,19 @@ These tests verify that agents cannot bypass ForgeImages' enforcement mechanisms
 - AssetInput requires dimensions
 - Skill always calls bridge (no local bypass)
 
+## Cloud-Fulfillment Contract Tests
+
+The Slice 01 tests prove that:
+
+- request and result schema versions are required and exact
+- every top-level transport envelope field is required
+- naive timestamps and unrecognized fields fail closed
+- result counts cannot diverge from accepted/rejected record lists
+- all 15 governed rejection codes round-trip as enums
+- unknown rejection codes fail closed
+- rejection guidance survives JSON round trips
+- the contract module imports without generation-provider dependencies
+
 ## Running Tests
 
 ```bash
@@ -1316,6 +1386,11 @@ cd forgeimages-core && cargo test --test invariants
 
 # Python tests
 cd forgeagents-forgeimages && pytest tests/ -v
+
+# Cloud-fulfillment Slice 01 only
+cd forgeagents-forgeimages && \
+  pytest tests/test_forgeimages_validation_contracts.py \
+         tests/test_forgeimages_rejection_report_contract.py -q
 
 # Python tests with coverage
 cd forgeagents-forgeimages && pytest tests/ -v --cov=bridge --cov=skill
@@ -1399,9 +1474,16 @@ curl -X POST http://localhost:8100/validate/pwa-icon \
 - [x] Skill wrapper (async httpx client with error handling)
 - [x] Audit logging (append-only JSONL with job_hash)
 - [x] Invariant tests (6 Rust contract tests)
-- [x] Boundary tests (20+ Python enforcement tests)
+- [x] Boundary tests (18 Python enforcement tests)
+- [x] Cloud-fulfillment Slice 01 validation and rejection contracts
 - [ ] Tauri integration for VibeForge
 - [ ] MCP tool definitions
+
+The Slice 01 contracts are offline seams: no NeuroForge-facing validation route,
+validator orchestration, asset manifest generation, replacement loop, or cloud
+generation dependency is implemented by this slice. The next governed work is
+ForgeImages Slice 02, which connects deterministic validator rules and manifests
+to these contracts.
 
 ## Future Work
 
