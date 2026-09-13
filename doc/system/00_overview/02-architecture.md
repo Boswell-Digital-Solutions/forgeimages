@@ -42,11 +42,12 @@ The HTTP gateway between agents and the Rust engine. Handles request validation 
 - Structured error responses (422 with violations + remediation)
 - Request size limiting
 
-The cloud-image fulfillment contract is an inbound production-validation
-boundary only. NeuroForge owns cloud generation and the fulfillment saga;
-ForgeImages owns deterministic validation and compilation. ForgeImages does not
-select or invoke generation providers. Slice 01 defines the transport models but
-does not expose a new route or perform validation work.
+The cloud-image fulfillment boundary is provider-free. NeuroForge owns cloud
+generation and the fulfillment saga; ForgeImages owns deterministic validation
+and compilation. ForgeImages does not select or invoke generation providers.
+Slice 01 defines the transport models. Slice 02 adds an offline metadata
+validator, governed profiles, and content-addressed manifests without exposing
+a public route or claiming artifact-byte inspection.
 
 ### Layer 3: Core Engine (Rust — `forgeimages-core/`)
 
@@ -128,3 +129,5 @@ Templates are versioned via semver. The engine checks `engineMinVersion` against
 | Base64 export data | No file paths cross the trust boundary; data is self-contained |
 | Canonical JSON hashing | Platform-independent determinism for manifest verification |
 | Mirrored v1 fulfillment contracts | NeuroForge and ForgeImages exchange strict JSON without sharing runtime dependencies |
+| Offline candidate validator | Metadata checks are deterministic and testable before durable artifact access exists |
+| Self-verifying manifest | Canonical JSON content is bound to a SHA-256 digest and rejects tampering |

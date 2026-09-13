@@ -59,6 +59,9 @@ ForgeImages/
     ├── bridge/                        # FastAPI bridge service
     │   ├── __init__.py                # Package init
     │   ├── cloud_fulfillment_contracts.py # Versioned NeuroForge validation contracts
+    │   ├── cloud_fulfillment_manifest.py # Deterministic validation manifest
+    │   ├── cloud_fulfillment_profiles.py # Immutable technical profiles
+    │   ├── cloud_fulfillment_validation.py # Offline candidate validator
     │   ├── forgeimages_bridge.py      # HTTP endpoints (health, templates, validate, compile)
     │   ├── models.py                  # Pydantic v2 models (AssetInput, CompileRequest, etc.)
     │   ├── settings.py                # Configuration (FORGEIMAGES_ env prefix)
@@ -68,6 +71,8 @@ ForgeImages/
     │   └── forgeimages_skill.py       # ForgeImagesSkill class (async httpx client)
     └── tests/
         ├── test_agent_boundary.py     # Agent boundary enforcement tests
+        ├── test_forgeimages_asset_manifest.py
+        ├── test_forgeimages_asset_validator.py
         ├── test_forgeimages_validation_contracts.py
         └── test_forgeimages_rejection_report_contract.py
 ```
@@ -92,6 +97,9 @@ ForgeImages/
 |--------|-----|----------------|
 | `models.py` | 93 | Pydantic v2 models mirroring Rust types |
 | `cloud_fulfillment_contracts.py` | — | Strict v1 validation request, result, rejection, and compiled-asset records |
+| `cloud_fulfillment_manifest.py` | — | Canonical manifest construction and digest verification |
+| `cloud_fulfillment_profiles.py` | — | Read-only profile registry for technical production thresholds |
+| `cloud_fulfillment_validation.py` | — | Provider-free MIME, resolution, ratio, safe-zone, and crop metadata checks |
 | `settings.py` | 33 | Environment-based config (FORGEIMAGES_ prefix) |
 | `audit.py` | 105 | Append-only JSONL audit log with job hash linkage |
 | `forgeimages_bridge.py` | 272 | FastAPI app with 5 endpoints, CLI subprocess calls |

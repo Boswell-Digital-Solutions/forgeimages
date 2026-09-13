@@ -182,11 +182,12 @@ The HTTP gateway between agents and the Rust engine. Handles request validation 
 - Structured error responses (422 with violations + remediation)
 - Request size limiting
 
-The cloud-image fulfillment contract is an inbound production-validation
-boundary only. NeuroForge owns cloud generation and the fulfillment saga;
-ForgeImages owns deterministic validation and compilation. ForgeImages does not
-select or invoke generation providers. Slice 01 defines the transport models but
-does not expose a new route or perform validation work.
+The cloud-image fulfillment boundary is provider-free. NeuroForge owns cloud
+generation and the fulfillment saga; ForgeImages owns deterministic validation
+and compilation. ForgeImages does not select or invoke generation providers.
+Slice 01 defines the transport models. Slice 02 adds an offline metadata
+validator, governed profiles, and content-addressed manifests without exposing
+a public route or claiming artifact-byte inspection.
 
 ### Layer 3: Core Engine (Rust — `forgeimages-core/`)
 
@@ -268,6 +269,8 @@ Templates are versioned via semver. The engine checks `engineMinVersion` against
 | Base64 export data | No file paths cross the trust boundary; data is self-contained |
 | Canonical JSON hashing | Platform-independent determinism for manifest verification |
 | Mirrored v1 fulfillment contracts | NeuroForge and ForgeImages exchange strict JSON without sharing runtime dependencies |
+| Offline candidate validator | Metadata checks are deterministic and testable before durable artifact access exists |
+| Self-verifying manifest | Canonical JSON content is bound to a SHA-256 digest and rejects tampering |
 
 ---
 
@@ -332,6 +335,9 @@ ForgeImages/
     ├── bridge/                        # FastAPI bridge service
     │   ├── __init__.py                # Package init
     │   ├── cloud_fulfillment_contracts.py # Versioned NeuroForge validation contracts
+    │   ├── cloud_fulfillment_manifest.py # Deterministic validation manifest
+    │   ├── cloud_fulfillment_profiles.py # Immutable technical profiles
+    │   ├── cloud_fulfillment_validation.py # Offline candidate validator
     │   ├── forgeimages_bridge.py      # HTTP endpoints (health, templates, validate, compile)
     │   ├── models.py                  # Pydantic v2 models (AssetInput, CompileRequest, etc.)
     │   ├── settings.py                # Configuration (FORGEIMAGES_ env prefix)
@@ -341,6 +347,8 @@ ForgeImages/
     │   └── forgeimages_skill.py       # ForgeImagesSkill class (async httpx client)
     └── tests/
         ├── test_agent_boundary.py     # Agent boundary enforcement tests
+        ├── test_forgeimages_asset_manifest.py
+        ├── test_forgeimages_asset_validator.py
         ├── test_forgeimages_validation_contracts.py
         └── test_forgeimages_rejection_report_contract.py
 ```
@@ -365,6 +373,9 @@ ForgeImages/
 |--------|-----|----------------|
 | `models.py` | 93 | Pydantic v2 models mirroring Rust types |
 | `cloud_fulfillment_contracts.py` | — | Strict v1 validation request, result, rejection, and compiled-asset records |
+| `cloud_fulfillment_manifest.py` | — | Canonical manifest construction and digest verification |
+| `cloud_fulfillment_profiles.py` | — | Read-only profile registry for technical production thresholds |
+| `cloud_fulfillment_validation.py` | — | Provider-free MIME, resolution, ratio, safe-zone, and crop metadata checks |
 | `settings.py` | 33 | Environment-based config (FORGEIMAGES_ prefix) |
 | `audit.py` | 105 | Append-only JSONL audit log with job hash linkage |
 | `forgeimages_bridge.py` | 272 | FastAPI app with 5 endpoints, CLI subprocess calls |
@@ -538,7 +549,9 @@ a file described as print-ready.
 ## NeuroForge Cloud-Fulfillment Contracts (Slice 01)
 
 `bridge/cloud_fulfillment_contracts.py` defines the provider-free JSON boundary
-that a later route will use. No endpoint is added in Slice 01.
+that a later route will use. No cloud-fulfillment endpoint is exposed through
+Slice 02: durable manifest storage and artifact-byte access do not yet exist,
+and the service must not advertise an unresolvable production result.
 
 Top-level payloads carry `schema_version`, `correlation_id`,
 `idempotency_key`, `source_service`, `target_service`, and timezone-aware
@@ -564,6 +577,31 @@ codes: `safe_zone_failed`, `aspect_ratio_invalid`, `resolution_too_low`,
 `composition_not_asset_ready`, `brand_layout_failed`, `file_decode_failed`,
 `unsupported_format`, `transparency_required_missing`, or
 `unknown_validation_failure`.
+
+### Slice 02 offline validation service
+
+`DeterministicCloudAssetValidator.validate()` accepts a parsed
+`ForgeImagesValidationRequestV1` and returns a
+`CloudAssetValidationOutput` containing the versioned result and an inline,
+self-verifying `ForgeImagesAssetManifestV1`.
+
+The initial checks execute in a stable order: supported MIME type, minimum
+resolution, expected aspect ratio, controlled force-reject metadata, optional
+safe-zone signal, then optional crop-viability signal. One primary rejection is
+reported per artifact. `replacement_count` equals the number of `hard_fail`
+rejections; soft failures remain reported but do not request replacement.
+
+Production validator instances reject test metadata. Tests must explicitly
+construct the service with `allow_test_metadata=True`. The default service
+accepts PNG, JPEG, and TIFF because those are the raster formats currently
+decoded by the Rust core; WebP therefore fails closed as `unsupported_format`.
+
+The manifest records validation/job lineage, sorted accepted and rejected
+artifact identifiers, template/profile identifiers, compiled asset IDs, export
+variants, and a SHA-256 digest of canonical compact JSON. Slice 02 leaves
+compiled asset IDs and export variants empty and returns no `manifest_uri`
+because compilation and durable manifest persistence are not implemented by
+this slice.
 
 ## CLI Subcommands
 
@@ -835,6 +873,33 @@ identities are locked to `forgeimages` → `neuroforge`. Exact `Literal` schema
 versions and enum-backed rejection codes make peer drift fail closed. Result
 model validation also requires accepted/rejected counts to match their lists
 and replacement flags to match the replacement count.
+
+### Slice 02 profiles and validation
+
+`cloud_fulfillment_profiles.py` defines immutable AuthorForge, PressForge, and
+internal-smoke profiles. The registry rejects duplicate or unknown profile IDs.
+The production profiles specify supported MIME types, minimum dimensions,
+aspect-ratio tolerance, and whether optional safe-zone/crop signals apply.
+
+`cloud_fulfillment_validation.py` evaluates only contract metadata and explicit
+signals. It performs no network requests, file reads, image decoding, provider
+selection, or compilation. Validation IDs and result idempotency keys are
+SHA-256-derived from stable request identity. Duplicate artifact or candidate
+IDs and metadata for unknown artifacts fail closed.
+
+`CandidateValidationMetadata` is a controlled placeholder/test seam. Force
+reject metadata is refused unless the validator is constructed with test hooks
+enabled. Safe-zone and crop rules act only when their profile enables the rule
+and an explicit false signal is present; absent signals are not represented as
+successful visual inspection.
+
+### Slice 02 manifests
+
+`cloud_fulfillment_manifest.py` sorts identifier lists, serializes compact JSON
+with stable key order, and computes a lowercase SHA-256 digest. Deserialization
+recomputes the digest with constant-time comparison, so content mutation fails
+validation. Manifests are returned inline by the offline service only; storage
+and URI resolution remain future work.
 
 ---
 
@@ -1295,6 +1360,7 @@ Templates are JSON files in the templates directory. Each template defines:
 | Rust core | 48 | inline + `forgeimages-core/tests/` | cargo test |
 | Python agent boundaries | 18 | `forgeagents-forgeimages/tests/test_agent_boundary.py` | pytest |
 | Cloud validation contracts | 18 | `test_forgeimages_validation_contracts.py`, `test_forgeimages_rejection_report_contract.py` | pytest |
+| Cloud validator and manifests | 14 | `test_forgeimages_asset_validator.py`, `test_forgeimages_asset_manifest.py` | pytest |
 
 ## Rust Invariant Tests
 
@@ -1375,6 +1441,20 @@ The Slice 01 tests prove that:
 - rejection guidance survives JSON round trips
 - the contract module imports without generation-provider dependencies
 
+## Cloud Validator and Manifest Tests
+
+The Slice 02 tests prove that:
+
+- valid artifacts are accepted while unsupported formats, low resolution, and
+  bad aspect ratio receive stable rejection codes
+- production-configured services reject test-only metadata
+- force-reject, safe-zone, and crop placeholder signals are deterministic
+- replacement counts include only hard failures
+- validation and idempotency identifiers are stable
+- manifest list ordering and hashing are deterministic
+- tampered manifest content fails digest verification
+- validator/profile/manifest modules have no generation-client imports
+
 ## Running Tests
 
 ```bash
@@ -1391,6 +1471,11 @@ cd forgeagents-forgeimages && pytest tests/ -v
 cd forgeagents-forgeimages && \
   pytest tests/test_forgeimages_validation_contracts.py \
          tests/test_forgeimages_rejection_report_contract.py -q
+
+# Cloud-fulfillment Slice 02 only
+cd forgeagents-forgeimages && \
+  pytest tests/test_forgeimages_asset_validator.py \
+         tests/test_forgeimages_asset_manifest.py -q
 
 # Python tests with coverage
 cd forgeagents-forgeimages && pytest tests/ -v --cov=bridge --cov=skill
@@ -1476,14 +1561,15 @@ curl -X POST http://localhost:8100/validate/pwa-icon \
 - [x] Invariant tests (6 Rust contract tests)
 - [x] Boundary tests (18 Python enforcement tests)
 - [x] Cloud-fulfillment Slice 01 validation and rejection contracts
+- [x] Cloud-fulfillment Slice 02 deterministic validator and manifest model
 - [ ] Tauri integration for VibeForge
 - [ ] MCP tool definitions
 
-The Slice 01 contracts are offline seams: no NeuroForge-facing validation route,
-validator orchestration, asset manifest generation, replacement loop, or cloud
-generation dependency is implemented by this slice. The next governed work is
-ForgeImages Slice 02, which connects deterministic validator rules and manifests
-to these contracts.
+The Slice 01/02 cloud-fulfillment components are offline seams: no
+NeuroForge-facing validation route, artifact-byte retrieval, durable manifest
+store, Rust compiler integration, or replacement loop is implemented. The next
+governed work is the cross-repository replacement-feedback Slice 03, initially
+using stubs and mocks.
 
 ## Future Work
 

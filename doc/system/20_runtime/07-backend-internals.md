@@ -224,3 +224,30 @@ identities are locked to `forgeimages` → `neuroforge`. Exact `Literal` schema
 versions and enum-backed rejection codes make peer drift fail closed. Result
 model validation also requires accepted/rejected counts to match their lists
 and replacement flags to match the replacement count.
+
+### Slice 02 profiles and validation
+
+`cloud_fulfillment_profiles.py` defines immutable AuthorForge, PressForge, and
+internal-smoke profiles. The registry rejects duplicate or unknown profile IDs.
+The production profiles specify supported MIME types, minimum dimensions,
+aspect-ratio tolerance, and whether optional safe-zone/crop signals apply.
+
+`cloud_fulfillment_validation.py` evaluates only contract metadata and explicit
+signals. It performs no network requests, file reads, image decoding, provider
+selection, or compilation. Validation IDs and result idempotency keys are
+SHA-256-derived from stable request identity. Duplicate artifact or candidate
+IDs and metadata for unknown artifacts fail closed.
+
+`CandidateValidationMetadata` is a controlled placeholder/test seam. Force
+reject metadata is refused unless the validator is constructed with test hooks
+enabled. Safe-zone and crop rules act only when their profile enables the rule
+and an explicit false signal is present; absent signals are not represented as
+successful visual inspection.
+
+### Slice 02 manifests
+
+`cloud_fulfillment_manifest.py` sorts identifier lists, serializes compact JSON
+with stable key order, and computes a lowercase SHA-256 digest. Deserialization
+recomputes the digest with constant-time comparison, so content mutation fails
+validation. Manifests are returned inline by the offline service only; storage
+and URI resolution remain future work.
