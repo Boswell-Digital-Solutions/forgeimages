@@ -94,7 +94,7 @@ class ForgeImagesSkill:
     and enforced by the ForgeImages engine.
 
     Example usage:
-        skill = ForgeImagesSkill("http://localhost:8000")
+        skill = ForgeImagesSkill("http://127.0.0.1:8100")
 
         # List available templates
         templates = await skill.list_templates()
@@ -118,7 +118,7 @@ class ForgeImagesSkill:
 
     def __init__(
         self,
-        bridge_url: str = "http://localhost:8000",
+        bridge_url: str = "http://127.0.0.1:8100",
         timeout: float = 30.0,
         user_id: Optional[str] = None,
     ):
