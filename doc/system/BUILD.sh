@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Assembles the compiled system reference (designation IMA).
+# Assembles the compiled system reference (designation IMG).
 # Fail-closed: missing structure, designation/output mismatch, or snapshot
 # validation failure aborts the build with BUILD_FAILED on stderr.
 
 PARTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$PARTS_DIR/../.." && pwd)"
-DESIGNATION="IMA"
+DESIGNATION="IMG"
 OUTPUT="${OUTPUT:-doc/${DESIGNATION}SYSTEM.md}"
 VALIDATOR="$PARTS_DIR/validate_snapshots.sh"
 
