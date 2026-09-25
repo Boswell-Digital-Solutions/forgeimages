@@ -25,24 +25,24 @@ inventory that may drift between audits.
 
 | Part | File | Contents |
 | --- | --- | --- |
-| §1 | `00_overview/01-overview-philosophy.md` | §1 — Overview & Philosophy |
-| §2 | `00_overview/02-architecture.md` | §2 — Architecture |
-| §3 | `00_overview/04-project-structure.md` | §4 — Project Structure |
-| §4 | `10_service-contract/06-api-layer.md` | §6 — API Layer |
-| §5 | `20_runtime/07-backend-internals.md` | §7 — Backend Internals |
-| §6 | `20_runtime/09-error-handling.md` | §9 — Error Handling |
-| §7 | `30_dependencies/03-tech-stack.md` | §3 — Tech Stack |
-| §8 | `30_dependencies/08-ecosystem-integration.md` | §8 — Ecosystem Integration |
-| §9 | `40_governance/10-scope.md` | Scope |
-| §10 | `40_governance/30-governance.md` | Governance |
-| §11 | `40_governance/40-change-control.md` | Change Control |
-| §12 | `50_operations/05-config-env.md` | §5 — Configuration & Environment |
-| §13 | `50_operations/10-testing.md` | §10 — Testing |
-| §14 | `50_operations/11-handover.md` | §11 — Handover |
-| §15 | `99_appendices/20-structure.md` | §4 — Project Structure |
-| §16 | `99_appendices/90-appendices.md` | Appendices |
-| §17 | `99_appendices/91-bootstrap-overview.md` | §1 — Overview & Philosophy |
-| §18 | `99_appendices/92-bootstrap-architecture.md` | §2 — Architecture |
+| §1 | `01-overview-philosophy.md` | §1 — Overview & Philosophy |
+| §2 | `02-architecture.md` | §2 — Architecture |
+| §3 | `04-project-structure.md` | §4 — Project Structure |
+| §4 | `06-api-layer.md` | §6 — API Layer |
+| §5 | `07-backend-internals.md` | §7 — Backend Internals |
+| §6 | `09-error-handling.md` | §9 — Error Handling |
+| §7 | `03-tech-stack.md` | §3 — Tech Stack |
+| §8 | `08-ecosystem-integration.md` | §8 — Ecosystem Integration |
+| §9 | `10-scope.md` | Scope |
+| §10 | `30-governance.md` | Governance |
+| §11 | `40-change-control.md` | Change Control |
+| §12 | `05-config-env.md` | §5 — Configuration & Environment |
+| §13 | `10-testing.md` | §10 — Testing |
+| §14 | `11-handover.md` | §11 — Handover |
+| §15 | `20-structure.md` | §4 — Project Structure |
+| §16 | `90-appendices.md` | Appendices |
+| §17 | `91-bootstrap-overview.md` | §1 — Overview & Philosophy |
+| §18 | `92-bootstrap-architecture.md` | §2 — Architecture |
 
 ## Quick Assembly
 
@@ -274,6 +274,58 @@ Templates are versioned via semver. The engine checks `engineMinVersion` against
 
 ---
 
+# §3 — Tech Stack
+
+## Rust Core Engine
+
+| Dependency | Version | Purpose |
+|------------|---------|---------|
+| serde | 1.0 (features: derive) | Serialization/deserialization |
+| serde_json | 1.0 | JSON parsing and canonical output |
+| sha2 | 0.10 | SHA-256 manifest hashing |
+| semver | 1.0 (features: serde) | Template version compatibility |
+| thiserror | 1.0 | Typed error handling |
+| base64 | 0.21 | Export data encoding |
+| chrono | 0.4 (features: serde) | Timestamps |
+| uuid | 1.0 (features: v4, serde) | Asset and export IDs |
+| clap | 4.0 (features: derive) | CLI argument parsing |
+| tempfile | 3.0 (dev only) | Test fixtures |
+
+**Rust edition:** 2024
+**MSRV:** Follows Rust 2024 edition requirements
+
+## Python Bridge + Skill
+
+| Dependency | Version | Purpose |
+|------------|---------|---------|
+| fastapi | >=0.104.0 | HTTP bridge framework |
+| uvicorn[standard] | >=0.24.0 | ASGI server |
+| pydantic | >=2.5.0 | Request/response validation |
+| pydantic-settings | >=2.1.0 | Environment-based configuration |
+| httpx | >=0.25.0 | Async HTTP client (skill → bridge) |
+| pytest | >=7.4.0 (dev) | Test framework |
+| pytest-asyncio | >=0.21.0 (dev) | Async test support |
+
+**Python version:** >=3.10
+**Build system:** hatchling
+
+## Build Tools
+
+| Tool | Purpose |
+|------|---------|
+| cargo | Rust build + test |
+| pip / hatch | Python package management |
+| uvicorn | Bridge server |
+| pytest | Python tests |
+
+## Feature Flags
+
+| Flag | Purpose |
+|------|---------|
+| `test-hooks` | Enables test hook points in compilation pipeline |
+
+---
+
 # §4 — Project Structure
 
 ## Directory Tree
@@ -380,6 +432,102 @@ ForgeImages/
 | `audit.py` | 105 | Append-only JSONL audit log with job hash linkage |
 | `forgeimages_bridge.py` | 272 | FastAPI app with 5 endpoints, CLI subprocess calls |
 | `forgeimages_skill.py` | 378 | ForgeImagesSkill class, async httpx, error handling |
+
+---
+
+# §5 — Configuration & Environment
+
+## Bridge Environment Variables
+
+All bridge configuration uses the `FORGEIMAGES_` prefix via pydantic-settings.
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `FORGEIMAGES_CLI_PATH` | Path | `../forgeimages-core/target/release/forgeimages-cli` | Path to compiled Rust CLI binary |
+| `FORGEIMAGES_TEMPLATES_DIR` | Path | `../forgeimages-core/templates` | Directory containing template JSON files |
+| `FORGEIMAGES_AUDIT_LOG_PATH` | Path | `./audit.jsonl` | Audit log output file |
+| `FORGEIMAGES_MAX_REQUEST_SIZE_MB` | int | `10` | Maximum HTTP request body size |
+| `FORGEIMAGES_MAX_PAYLOAD_SIZE_KB` | int | `512` | Maximum JSON payload size |
+| `FORGEIMAGES_ENGINE_VERSION` | str | `"1.0.0"` | Engine version for audit logging |
+
+## CLI Flags
+
+### Global Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--templates-dir` | `templates` | Directory containing template JSON files |
+
+### Validate Subcommand
+
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--template` | Yes | Template ID to validate against |
+| `--payload` | Yes | JSON string of AssetInput |
+
+### Compile Subcommand
+
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--template` | Yes | Template ID to compile against |
+| `--payload` | Yes | JSON string of CompileRequest |
+
+## Template Configuration (pwa-icon.json)
+
+Templates are JSON files in the templates directory. Each template defines:
+
+```json
+{
+  "id": "pwa-icon",
+  "name": "PWA Icon Pack",
+  "templateVersion": "1.0.0",
+  "engineMinVersion": "1.0.0",
+  "assetClass": "icon",
+  "aspectRatio": [1, 1],
+  "canonicalSize": [1024, 1024],
+  "vectorMaster": true,
+  "validation": {
+    "required": true,
+    "failureMode": "block",
+    "rules": {
+      "aspectRatio": { "enabled": true, "tolerance": 0.01 },
+      "resolution": { "enabled": true, "minWidth": 512, "minHeight": 512 },
+      "colorCount": { "enabled": true, "maxColors": 16 }
+    }
+  },
+  "exports": [
+    { "id": "master", "size": [1024, 1024], "format": "svg", "required": true },
+    { "id": "favicon-16", "size": [16, 16], "format": "png", "required": true },
+    { "id": "favicon-32", "size": [32, 32], "format": "png", "required": true },
+    { "id": "apple-touch", "size": [180, 180], "format": "png", "required": true },
+    { "id": "pwa-192", "size": [192, 192], "format": "png", "required": true },
+    { "id": "pwa-512", "size": [512, 512], "format": "png", "required": true }
+  ]
+}
+```
+
+## Rust Constants
+
+| Constant | Value | Location |
+|----------|-------|----------|
+| `ENGINE_VERSION` | `env!("CARGO_PKG_VERSION")` → `"1.0.0"` | `lib.rs` |
+| `MIN_TEMPLATE_VERSION` | `"1.0.0"` | `lib.rs` |
+
+## Default Validation Tolerances
+
+| Rule | Default | Description |
+|------|---------|-------------|
+| Aspect ratio tolerance | 0.01 (1%) | Quantization bucket for ratio comparison |
+| Min resolution | 1024x1024 | Default minimum (overridden by template) |
+| Max color count | 16 | Default maximum (overridden by template) |
+
+## Print Defaults
+
+| Setting | Default | Valid Range |
+|---------|---------|-------------|
+| DPI | 300 | 72-1200 |
+| Color space | RGB | RGB, CMYK, Grayscale |
+| Bleed | 0.125 inches | 0-1 inch |
 
 ---
 
@@ -903,186 +1051,6 @@ and URI resolution remain future work.
 
 ---
 
-# §9 — Error Handling
-
-## The 422 Contract
-
-HTTP 422 (Unprocessable Entity) is the enforcement mechanism. When validation fails with blocking errors, the bridge returns 422 with structured violation data. Agents must handle 422 to proceed — there is no workaround.
-
-```
-Agent → POST /compile/pwa-icon → Bridge → CLI (validate) → exit 2
-                                 Bridge ← JSON violations
-Agent ← 422 + violations ← Bridge
-```
-
-The 422 response body is always a `ValidationResult` with `valid: false` and a non-empty `violations` array.
-
-## Rust Error Types (`pipeline.rs`)
-
-```rust
-#[derive(Debug, thiserror::Error)]
-pub enum PipelineError {
-    #[error("Template not found: {0}")]
-    TemplateNotFound(String),
-
-    #[error("Validation failed")]
-    ValidationFailed(ValidationResult),
-
-    #[error("Engine version {engine} < required {required}")]
-    EngineVersionMismatch { engine: String, required: String },
-
-    #[error("Compilation error: {0}")]
-    CompilationError(String),
-
-    #[error("Serialization error: {0}")]
-    SerializationError(#[from] serde_json::Error),
-}
-```
-
-## Validation Violations
-
-Each violation contains full diagnostic information:
-
-| Field | Type | Purpose |
-|-------|------|---------|
-| `rule` | string | Which rule produced this (e.g., "aspect_ratio") |
-| `severity` | enum | Error, Warning, or Info |
-| `message` | string | Human-readable description |
-| `expected` | string | What the template requires |
-| `actual` | string | What the input provided |
-| `remediation` | string[] | Actionable fix suggestions |
-
-### Severity Semantics
-
-| Severity | Blocks in Block mode | Blocks in Warn mode | Blocks in Log mode |
-|----------|---------------------|---------------------|-------------------|
-| Error | Yes | No | No |
-| Warning | No | No | No |
-| Info | No | No | No |
-
-## CLI Exit Codes
-
-| Code | Meaning | Stdout | Bridge Action |
-|------|---------|--------|---------------|
-| 0 | Success | JSON result | Return 200 |
-| 1 | System error | Error message | Return 500 |
-| 2 | Validation failure | JSON with violations | Return 422 |
-
-The bridge interprets exit code 2 specifically as a validation failure and parses the stdout JSON for violation details.
-
-## Bridge Error Responses
-
-| HTTP Status | Condition | Response Body |
-|-------------|-----------|---------------|
-| 404 | Template not found | `{"detail": "Template not found: {id}"}` |
-| 422 | Validation failure | `ValidationResult` with violations |
-| 503 | CLI binary not found | `{"detail": "ForgeImages CLI not available"}` |
-| 504 | CLI timeout | `{"detail": "CLI execution timed out"}` |
-
-## Python Exceptions
-
-### Skill-Level Errors
-
-```python
-class ForgeImagesError(Exception):
-    """Raised when bridge returns non-2xx status."""
-    status_code: int
-    violations: list[dict]
-
-    def is_validation_error(self) -> bool:
-        """True if HTTP 422 (validation failure)."""
-        return self.status_code == 422
-
-    def get_remediation_hints(self) -> list[str]:
-        """Extract remediation from all violations."""
-```
-
-### Error Flow
-
-```
-compile() called
-  → httpx.post("/compile/{id}")
-    → HTTP 422 returned
-      → Parse violations from response
-      → Raise ForgeImagesError(status_code=422, violations=[...])
-
-validate_and_compile() called
-  → validate() called first
-    → HTTP 422 returned
-      → Return (ValidationResult(valid=False, ...), None)
-      → Does NOT raise — caller checks result.valid
-```
-
-The `validate_and_compile()` convenience method intentionally does not raise on validation failure. It returns `(result, None)` so agents can inspect violations and decide how to respond.
-
-## Pydantic Validation (Bridge Input)
-
-The bridge validates all inputs before calling the CLI:
-
-| Constraint | Field | Rule |
-|------------|-------|------|
-| Dimension range | width, height | 1-10000 |
-| Color count range | color_count | 1-256 (optional) |
-| Template ID format | template_id | `^[a-zA-Z0-9_-]+$` (no path traversal) |
-| Prompt length | prompt | Max 2000 characters |
-| Seed value | seed | Non-negative integer |
-
-Invalid input is rejected at the Pydantic layer before the CLI is ever invoked.
-
----
-
-# §3 — Tech Stack
-
-## Rust Core Engine
-
-| Dependency | Version | Purpose |
-|------------|---------|---------|
-| serde | 1.0 (features: derive) | Serialization/deserialization |
-| serde_json | 1.0 | JSON parsing and canonical output |
-| sha2 | 0.10 | SHA-256 manifest hashing |
-| semver | 1.0 (features: serde) | Template version compatibility |
-| thiserror | 1.0 | Typed error handling |
-| base64 | 0.21 | Export data encoding |
-| chrono | 0.4 (features: serde) | Timestamps |
-| uuid | 1.0 (features: v4, serde) | Asset and export IDs |
-| clap | 4.0 (features: derive) | CLI argument parsing |
-| tempfile | 3.0 (dev only) | Test fixtures |
-
-**Rust edition:** 2024
-**MSRV:** Follows Rust 2024 edition requirements
-
-## Python Bridge + Skill
-
-| Dependency | Version | Purpose |
-|------------|---------|---------|
-| fastapi | >=0.104.0 | HTTP bridge framework |
-| uvicorn[standard] | >=0.24.0 | ASGI server |
-| pydantic | >=2.5.0 | Request/response validation |
-| pydantic-settings | >=2.1.0 | Environment-based configuration |
-| httpx | >=0.25.0 | Async HTTP client (skill → bridge) |
-| pytest | >=7.4.0 (dev) | Test framework |
-| pytest-asyncio | >=0.21.0 (dev) | Async test support |
-
-**Python version:** >=3.10
-**Build system:** hatchling
-
-## Build Tools
-
-| Tool | Purpose |
-|------|---------|
-| cargo | Rust build + test |
-| pip / hatch | Python package management |
-| uvicorn | Bridge server |
-| pytest | Python tests |
-
-## Feature Flags
-
-| Flag | Purpose |
-|------|---------|
-| `test-hooks` | Enables test hook points in compilation pipeline |
-
----
-
 # §8 — Ecosystem Integration
 
 ## Integration Map
@@ -1215,6 +1183,134 @@ This maintains the DataForge source-of-truth contract while keeping ForgeImages 
 
 ---
 
+# §9 — Error Handling
+
+## The 422 Contract
+
+HTTP 422 (Unprocessable Entity) is the enforcement mechanism. When validation fails with blocking errors, the bridge returns 422 with structured violation data. Agents must handle 422 to proceed — there is no workaround.
+
+```
+Agent → POST /compile/pwa-icon → Bridge → CLI (validate) → exit 2
+                                 Bridge ← JSON violations
+Agent ← 422 + violations ← Bridge
+```
+
+The 422 response body is always a `ValidationResult` with `valid: false` and a non-empty `violations` array.
+
+## Rust Error Types (`pipeline.rs`)
+
+```rust
+#[derive(Debug, thiserror::Error)]
+pub enum PipelineError {
+    #[error("Template not found: {0}")]
+    TemplateNotFound(String),
+
+    #[error("Validation failed")]
+    ValidationFailed(ValidationResult),
+
+    #[error("Engine version {engine} < required {required}")]
+    EngineVersionMismatch { engine: String, required: String },
+
+    #[error("Compilation error: {0}")]
+    CompilationError(String),
+
+    #[error("Serialization error: {0}")]
+    SerializationError(#[from] serde_json::Error),
+}
+```
+
+## Validation Violations
+
+Each violation contains full diagnostic information:
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `rule` | string | Which rule produced this (e.g., "aspect_ratio") |
+| `severity` | enum | Error, Warning, or Info |
+| `message` | string | Human-readable description |
+| `expected` | string | What the template requires |
+| `actual` | string | What the input provided |
+| `remediation` | string[] | Actionable fix suggestions |
+
+### Severity Semantics
+
+| Severity | Blocks in Block mode | Blocks in Warn mode | Blocks in Log mode |
+|----------|---------------------|---------------------|-------------------|
+| Error | Yes | No | No |
+| Warning | No | No | No |
+| Info | No | No | No |
+
+## CLI Exit Codes
+
+| Code | Meaning | Stdout | Bridge Action |
+|------|---------|--------|---------------|
+| 0 | Success | JSON result | Return 200 |
+| 1 | System error | Error message | Return 500 |
+| 2 | Validation failure | JSON with violations | Return 422 |
+
+The bridge interprets exit code 2 specifically as a validation failure and parses the stdout JSON for violation details.
+
+## Bridge Error Responses
+
+| HTTP Status | Condition | Response Body |
+|-------------|-----------|---------------|
+| 404 | Template not found | `{"detail": "Template not found: {id}"}` |
+| 422 | Validation failure | `ValidationResult` with violations |
+| 503 | CLI binary not found | `{"detail": "ForgeImages CLI not available"}` |
+| 504 | CLI timeout | `{"detail": "CLI execution timed out"}` |
+
+## Python Exceptions
+
+### Skill-Level Errors
+
+```python
+class ForgeImagesError(Exception):
+    """Raised when bridge returns non-2xx status."""
+    status_code: int
+    violations: list[dict]
+
+    def is_validation_error(self) -> bool:
+        """True if HTTP 422 (validation failure)."""
+        return self.status_code == 422
+
+    def get_remediation_hints(self) -> list[str]:
+        """Extract remediation from all violations."""
+```
+
+### Error Flow
+
+```
+compile() called
+  → httpx.post("/compile/{id}")
+    → HTTP 422 returned
+      → Parse violations from response
+      → Raise ForgeImagesError(status_code=422, violations=[...])
+
+validate_and_compile() called
+  → validate() called first
+    → HTTP 422 returned
+      → Return (ValidationResult(valid=False, ...), None)
+      → Does NOT raise — caller checks result.valid
+```
+
+The `validate_and_compile()` convenience method intentionally does not raise on validation failure. It returns `(result, None)` so agents can inspect violations and decide how to respond.
+
+## Pydantic Validation (Bridge Input)
+
+The bridge validates all inputs before calling the CLI:
+
+| Constraint | Field | Rule |
+|------------|-------|------|
+| Dimension range | width, height | 1-10000 |
+| Color count range | color_count | 1-256 (optional) |
+| Template ID format | template_id | `^[a-zA-Z0-9_-]+$` (no path traversal) |
+| Prompt length | prompt | Max 2000 characters |
+| Seed value | seed | Non-negative integer |
+
+Invalid input is rejected at the Pydantic layer before the CLI is ever invoked.
+
+---
+
 # Scope
 
 **Document version:** 1.0 (bootstrap scaffold)
@@ -1225,128 +1321,6 @@ Scope and authority boundary of this documentation system.
 > `documentation` class documentation system. Replace this placeholder with
 > real authored content. Registry will not invent repo truth that is not
 > already present in the repo.
-
----
-
-# Governance
-
-**Document version:** 1.0 (bootstrap scaffold)
-
-Ownership, review, and change-authority boundaries.
-
-> This chapter is a registry-generated bootstrap scaffold for a
-> `documentation` class documentation system. Replace this placeholder with
-> real authored content. Registry will not invent repo truth that is not
-> already present in the repo.
-
----
-
-# Change Control
-
-**Document version:** 1.0 (bootstrap scaffold)
-
-Change-control workflow, proposal lifecycle, and audit.
-
-> This chapter is a registry-generated bootstrap scaffold for a
-> `documentation` class documentation system. Replace this placeholder with
-> real authored content. Registry will not invent repo truth that is not
-> already present in the repo.
-
----
-
-# §5 — Configuration & Environment
-
-## Bridge Environment Variables
-
-All bridge configuration uses the `FORGEIMAGES_` prefix via pydantic-settings.
-
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `FORGEIMAGES_CLI_PATH` | Path | `../forgeimages-core/target/release/forgeimages-cli` | Path to compiled Rust CLI binary |
-| `FORGEIMAGES_TEMPLATES_DIR` | Path | `../forgeimages-core/templates` | Directory containing template JSON files |
-| `FORGEIMAGES_AUDIT_LOG_PATH` | Path | `./audit.jsonl` | Audit log output file |
-| `FORGEIMAGES_MAX_REQUEST_SIZE_MB` | int | `10` | Maximum HTTP request body size |
-| `FORGEIMAGES_MAX_PAYLOAD_SIZE_KB` | int | `512` | Maximum JSON payload size |
-| `FORGEIMAGES_ENGINE_VERSION` | str | `"1.0.0"` | Engine version for audit logging |
-
-## CLI Flags
-
-### Global Flags
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--templates-dir` | `templates` | Directory containing template JSON files |
-
-### Validate Subcommand
-
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--template` | Yes | Template ID to validate against |
-| `--payload` | Yes | JSON string of AssetInput |
-
-### Compile Subcommand
-
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--template` | Yes | Template ID to compile against |
-| `--payload` | Yes | JSON string of CompileRequest |
-
-## Template Configuration (pwa-icon.json)
-
-Templates are JSON files in the templates directory. Each template defines:
-
-```json
-{
-  "id": "pwa-icon",
-  "name": "PWA Icon Pack",
-  "templateVersion": "1.0.0",
-  "engineMinVersion": "1.0.0",
-  "assetClass": "icon",
-  "aspectRatio": [1, 1],
-  "canonicalSize": [1024, 1024],
-  "vectorMaster": true,
-  "validation": {
-    "required": true,
-    "failureMode": "block",
-    "rules": {
-      "aspectRatio": { "enabled": true, "tolerance": 0.01 },
-      "resolution": { "enabled": true, "minWidth": 512, "minHeight": 512 },
-      "colorCount": { "enabled": true, "maxColors": 16 }
-    }
-  },
-  "exports": [
-    { "id": "master", "size": [1024, 1024], "format": "svg", "required": true },
-    { "id": "favicon-16", "size": [16, 16], "format": "png", "required": true },
-    { "id": "favicon-32", "size": [32, 32], "format": "png", "required": true },
-    { "id": "apple-touch", "size": [180, 180], "format": "png", "required": true },
-    { "id": "pwa-192", "size": [192, 192], "format": "png", "required": true },
-    { "id": "pwa-512", "size": [512, 512], "format": "png", "required": true }
-  ]
-}
-```
-
-## Rust Constants
-
-| Constant | Value | Location |
-|----------|-------|----------|
-| `ENGINE_VERSION` | `env!("CARGO_PKG_VERSION")` → `"1.0.0"` | `lib.rs` |
-| `MIN_TEMPLATE_VERSION` | `"1.0.0"` | `lib.rs` |
-
-## Default Validation Tolerances
-
-| Rule | Default | Description |
-|------|---------|-------------|
-| Aspect ratio tolerance | 0.01 (1%) | Quantization bucket for ratio comparison |
-| Min resolution | 1024x1024 | Default minimum (overridden by template) |
-| Max color count | 16 | Default maximum (overridden by template) |
-
-## Print Defaults
-
-| Setting | Default | Valid Range |
-|---------|---------|-------------|
-| DPI | 300 | 72-1200 |
-| Color space | RGB | RGB, CMYK, Grayscale |
-| Bleed | 0.125 inches | 0-1 inch |
 
 ---
 
@@ -1707,6 +1681,32 @@ ForgeImages/
 | `forgeimages_skill.py` | 378 | ForgeImagesSkill class, async httpx, error handling |
 
 ---
+
+---
+
+# Governance
+
+**Document version:** 1.0 (bootstrap scaffold)
+
+Ownership, review, and change-authority boundaries.
+
+> This chapter is a registry-generated bootstrap scaffold for a
+> `documentation` class documentation system. Replace this placeholder with
+> real authored content. Registry will not invent repo truth that is not
+> already present in the repo.
+
+---
+
+# Change Control
+
+**Document version:** 1.0 (bootstrap scaffold)
+
+Change-control workflow, proposal lifecycle, and audit.
+
+> This chapter is a registry-generated bootstrap scaffold for a
+> `documentation` class documentation system. Replace this placeholder with
+> real authored content. Registry will not invent repo truth that is not
+> already present in the repo.
 
 ---
 
