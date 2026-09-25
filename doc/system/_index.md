@@ -25,24 +25,24 @@ inventory that may drift between audits.
 
 | Part | File | Contents |
 | --- | --- | --- |
-| §1 | `00_overview/01-overview-philosophy.md` | §1 — Overview & Philosophy |
-| §2 | `00_overview/02-architecture.md` | §2 — Architecture |
-| §3 | `00_overview/04-project-structure.md` | §4 — Project Structure |
-| §4 | `10_service-contract/06-api-layer.md` | §6 — API Layer |
-| §5 | `20_runtime/07-backend-internals.md` | §7 — Backend Internals |
-| §6 | `20_runtime/09-error-handling.md` | §9 — Error Handling |
-| §7 | `30_dependencies/03-tech-stack.md` | §3 — Tech Stack |
-| §8 | `30_dependencies/08-ecosystem-integration.md` | §8 — Ecosystem Integration |
-| §9 | `40_governance/10-scope.md` | Scope |
-| §10 | `40_governance/30-governance.md` | Governance |
-| §11 | `40_governance/40-change-control.md` | Change Control |
-| §12 | `50_operations/05-config-env.md` | §5 — Configuration & Environment |
-| §13 | `50_operations/10-testing.md` | §10 — Testing |
-| §14 | `50_operations/11-handover.md` | §11 — Handover |
-| §15 | `99_appendices/20-structure.md` | §4 — Project Structure |
-| §16 | `99_appendices/90-appendices.md` | Appendices |
-| §17 | `99_appendices/91-bootstrap-overview.md` | §1 — Overview & Philosophy |
-| §18 | `99_appendices/92-bootstrap-architecture.md` | §2 — Architecture |
+| §1 | `01-overview-philosophy.md` | §1 — Overview & Philosophy |
+| §2 | `02-architecture.md` | §2 — Architecture |
+| §3 | `04-project-structure.md` | §4 — Project Structure |
+| §4 | `06-api-layer.md` | §6 — API Layer |
+| §5 | `07-backend-internals.md` | §7 — Backend Internals |
+| §6 | `09-error-handling.md` | §9 — Error Handling |
+| §7 | `03-tech-stack.md` | §3 — Tech Stack |
+| §8 | `08-ecosystem-integration.md` | §8 — Ecosystem Integration |
+| §9 | `10-scope.md` | Scope |
+| §10 | `30-governance.md` | Governance |
+| §11 | `40-change-control.md` | Change Control |
+| §12 | `05-config-env.md` | §5 — Configuration & Environment |
+| §13 | `10-testing.md` | §10 — Testing |
+| §14 | `11-handover.md` | §11 — Handover |
+| §15 | `20-structure.md` | §4 — Project Structure |
+| §16 | `90-appendices.md` | Appendices |
+| §17 | `91-bootstrap-overview.md` | §1 — Overview & Philosophy |
+| §18 | `92-bootstrap-architecture.md` | §2 — Architecture |
 
 ## Quick Assembly
 
