@@ -1,0 +1,12 @@
+# Direct inputs of the frozen forgeimages-bridge sidecar, hashed.
+# Mirrors the runtime dependencies in forgeagents-forgeimages/pyproject.toml,
+# without httpx (the agent skill uses it; the bridge does not) and with plain
+# uvicorn (no uvloop/httptools extras), plus PyInstaller.
+# Regenerate (Python 3.12, all platforms, hashes):
+#   uv pip compile packaging/requirements-freeze.in --universal --python-version 3.12 \
+#     --generate-hashes --exclude-newer <date> -o packaging/requirements-freeze.txt
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+pyinstaller>=6.10
