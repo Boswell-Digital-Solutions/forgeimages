@@ -785,6 +785,25 @@ forgeimages-cli compile \
 
 Output: JSON CompiledAsset. Exit code 0 = success, exit code 2 = validation/compilation failure.
 
+### Payload on stdin
+
+`--payload -` makes the CLI read the JSON payload from stdin. The bridge always
+uses this form for `validate` and `compile`.
+
+The reason is size. A compile payload carries the base64 raster master, which is
+often several MiB. Linux refuses a single argument over 128 KiB (`E2BIG`,
+"Argument list too long"). Windows limits the whole command line to 32 KiB.
+Before this change, every compile of a real diffusion master failed with HTTP 500.
+
+```bash
+echo '{"width":1080,"height":1080}' | \
+  forgeimages-cli --templates-dir ./templates validate --template panel-square --payload -
+```
+
+`forgeimages-core/tests/cli_payload.rs` runs the real binary with a master over
+4 MiB. `forgeagents-forgeimages/tests/test_bridge_cli_payload.py` proves that the
+bridge puts the payload on stdin and not in the argument list.
+
 ### CLI Exit Code Semantics
 
 | Code | Meaning | Bridge Interpretation |

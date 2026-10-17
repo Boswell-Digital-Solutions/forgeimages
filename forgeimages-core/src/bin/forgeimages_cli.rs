@@ -3,8 +3,14 @@
 //! Commands: templates, validate, compile
 //! Outputs JSON to stdout
 //! Returns non-zero on validation failure
+//!
+//! `--payload -` reads the JSON payload from stdin. The bridge uses that form:
+//! a base64 raster master is megabytes, and Linux refuses any single argument
+//! over 128 KiB (`E2BIG`, "Argument list too long"). Windows caps the whole
+//! command line at 32 KiB.
 
 use clap::{Parser, Subcommand};
+use std::io::Read;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -35,7 +41,7 @@ enum Commands {
         #[arg(short, long)]
         template: String,
 
-        /// JSON payload (AssetInput)
+        /// JSON payload (AssetInput), or `-` to read it from stdin
         #[arg(short, long)]
         payload: String,
     },
@@ -46,10 +52,22 @@ enum Commands {
         #[arg(short, long)]
         template: String,
 
-        /// JSON payload (CompileRequest)
+        /// JSON payload (CompileRequest), or `-` to read it from stdin
         #[arg(short, long)]
         payload: String,
     },
+}
+
+/// The payload argument as given, or stdin when it is `-`.
+fn read_payload(arg: String) -> Result<String, String> {
+    if arg != "-" {
+        return Ok(arg);
+    }
+    let mut buf = String::new();
+    std::io::stdin()
+        .read_to_string(&mut buf)
+        .map_err(|e| format!("cannot read payload from stdin: {e}"))?;
+    Ok(buf)
 }
 
 fn main() -> ExitCode {
@@ -87,6 +105,13 @@ fn main() -> ExitCode {
         }
 
         Commands::Validate { template, payload } => {
+            let payload = match read_payload(payload) {
+                Ok(p) => p,
+                Err(e) => {
+                    println!("{}", serde_json::json!({"valid": false, "error": e}));
+                    return ExitCode::FAILURE;
+                }
+            };
             let input: AssetInput = match serde_json::from_str(&payload) {
                 Ok(i) => i,
                 Err(e) => {
@@ -112,6 +137,13 @@ fn main() -> ExitCode {
         }
 
         Commands::Compile { template, payload } => {
+            let payload = match read_payload(payload) {
+                Ok(p) => p,
+                Err(e) => {
+                    println!("{}", serde_json::json!({"success": false, "error": e}));
+                    return ExitCode::FAILURE;
+                }
+            };
             let request: CompileRequest = match serde_json::from_str(&payload) {
                 Ok(r) => r,
                 Err(e) => {
