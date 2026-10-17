@@ -94,6 +94,9 @@ AuthorForge will use ForgeImages for:
 
 **Status:** Not yet implemented. Requires CMYK export pipeline and print templates.
 
+AuthorForge release bundles ship the bridge as the `forgeimages-bridge` sidecar
+for the image-generation lane. See §12 — Frozen Bridge Sidecar.
+
 ## DataForge Integration
 
 ForgeImages does not write directly to DataForge. The expected data flow:

@@ -43,6 +43,7 @@ inventory that may drift between audits.
 | §16 | `90-appendices.md` | Appendices |
 | §17 | `91-bootstrap-overview.md` | §1 — Overview & Philosophy |
 | §18 | `92-bootstrap-architecture.md` | §2 — Architecture |
+| §19 | `12-frozen-sidecar.md` | §12 — Frozen Bridge Sidecar |
 
 ## Quick Assembly
 

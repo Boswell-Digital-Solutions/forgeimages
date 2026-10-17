@@ -37,8 +37,13 @@ app = FastAPI(
 audit = AuditLogger(settings.audit_log_path)
 
 
-def call_cli(command: list[str]) -> tuple[int, str]:
-    """Call the Rust CLI and return (exit_code, stdout)."""
+def call_cli(command: list[str], payload: Optional[str] = None) -> tuple[int, str]:
+    """Call the Rust CLI and return (exit_code, stdout).
+
+    A payload goes to the CLI on stdin (`--payload -`), never as an argument:
+    a base64 raster master is megabytes, and the OS refuses an argument that
+    large (Linux: 128 KiB per argument, "Argument list too long").
+    """
     cli_path = settings.cli_path
     templates_dir = settings.templates_dir
 
@@ -51,6 +56,7 @@ def call_cli(command: list[str]) -> tuple[int, str]:
     try:
         result = subprocess.run(
             full_command,
+            input=payload,
             capture_output=True,
             text=True,
             timeout=30,
@@ -121,11 +127,10 @@ async def validate_asset(
     payload = asset_input.model_dump()
 
     # Call CLI
-    exit_code, output = call_cli([
-        "validate",
-        "--template", template_id,
-        "--payload", json.dumps(payload),
-    ])
+    exit_code, output = call_cli(
+        ["validate", "--template", template_id, "--payload", "-"],
+        payload=json.dumps(payload),
+    )
 
     try:
         result = json.loads(output)
@@ -197,11 +202,10 @@ async def compile_asset(
     payload = compile_request.model_dump()
 
     # Call CLI
-    exit_code, output = call_cli([
-        "compile",
-        "--template", template_id,
-        "--payload", json.dumps(payload),
-    ])
+    exit_code, output = call_cli(
+        ["compile", "--template", template_id, "--payload", "-"],
+        payload=json.dumps(payload),
+    )
 
     try:
         result = json.loads(output)

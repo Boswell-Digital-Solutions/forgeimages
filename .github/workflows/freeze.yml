@@ -1,0 +1,64 @@
+name: Frozen bridge qualification
+
+# Builds the forgeimages-bridge sidecar AuthorForge bundles (PyInstaller onefile
+# carrying the bridge, forgeimages-cli and the templates) on every platform
+# AuthorForge releases for: Rust from the tracked Cargo.lock, Python from the
+# hashed lock only. Then it runs the binary: --runtime-info must report every
+# required module and the bundled templates, and the service must start, answer
+# /health, compile a real-size master and write its audit line.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "packaging/**"
+      - "forgeagents-forgeimages/bridge/**"
+      - "forgeimages-core/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/freeze.yml"
+  pull_request:
+    branches: [master]
+    paths:
+      - "packaging/**"
+      - "forgeagents-forgeimages/bridge/**"
+      - "forgeimages-core/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/freeze.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  freeze:
+    name: Freeze and qualify (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # ubuntu-22.04 matches AuthorForge's release runner, so the frozen
+        # binary links against the same glibc floor.
+        os: [ubuntu-22.04, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - id: py
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Rust toolchain
+        shell: bash
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+      - name: Engine tests
+        shell: bash
+        run: cargo test --locked -p forgeimages-core
+      - name: Freeze forgeimages-bridge
+        shell: bash
+        env:
+          PYTHON: ${{ steps.py.outputs.python-path }}
+        run: bash packaging/build.sh
+      - name: Start the binary and check it
+        shell: bash
+        run: python packaging/qualify_frozen.py packaging/dist

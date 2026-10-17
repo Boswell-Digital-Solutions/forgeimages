@@ -3,7 +3,8 @@
 /forgeimages-core/target/
 /forgeimages-tauri/target/
 **/*.rs.bk
-Cargo.lock
+# Cargo.lock is tracked: forgeimages-cli ships inside the AuthorForge
+# forgeimages-bridge sidecar, and a shipped binary builds with --locked.
 
 # Python
 __pycache__/
@@ -45,3 +46,6 @@ context-bundle.md
 # OS
 .DS_Store
 Thumbs.db
+
+# Frozen sidecar build venv (packaging/build.sh)
+.venv-freeze/
