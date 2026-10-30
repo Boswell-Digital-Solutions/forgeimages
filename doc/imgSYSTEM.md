@@ -514,7 +514,9 @@ All bridge configuration uses the `FORGEIMAGES_` prefix via pydantic-settings.
 | `FORGEIMAGES_MAX_PAYLOAD_SIZE_KB` | int | `512` | Declared but **not enforced**: no code reads it. The request-size middleware uses `MAX_REQUEST_SIZE_MB` only |
 | `FORGEIMAGES_ENGINE_VERSION` | str | `"1.0.0"` | Engine version the bridge uses when it computes an audit job hash itself (validate, and compile when the CLI returned none) |
 
-The frozen sidecar adds `FORGEIMAGES_BRIDGE_HOST` (default `127.0.0.1`) and `FORGEIMAGES_BRIDGE_PORT` (default `8100`). It requires `FORGEIMAGES_AUDIT_LOG_PATH` and exits 2 without it. It defaults the CLI and templates paths to the bundled copies. See §12.
+`FORGEIMAGES_BRIDGE_CAPABILITY` is the per-launch caller capability (32–512 URL-safe characters). The bridge refuses every route except `/health` with `503` when it is unset. The AuthorForge shell mints it at each launch.
+
+The frozen sidecar adds `FORGEIMAGES_BRIDGE_HOST` (default `127.0.0.1`; only `127.0.0.1`, `::1` or `localhost`, any other value exits 2) and `FORGEIMAGES_BRIDGE_PORT` (default `8100`). It requires `FORGEIMAGES_AUDIT_LOG_PATH` and exits 2 without it. It defaults the CLI and templates paths to the bundled copies. See §12.
 
 The skill's default bridge URL is `http://127.0.0.1:8100`.
 
@@ -761,12 +763,14 @@ On `/compile`, read the `detail.error` string to tell a rule violation from a re
 
 ### Middleware
 
+- **Caller boundary** (`bridge/local_caller_boundary.py`, runs first) — Only `GET`/`HEAD /health` is public. Every other route needs a loopback peer address, one loopback `Host` on the bound port, no `Origin`, and the per-launch `X-AuthorForge-ForgeImages-Capability` equal to `FORGEIMAGES_BRIDGE_CAPABILITY`. Every `POST` needs `Content-Type: application/json`. Refusals: `403 invalid_local_caller`, `503 local_capability_unconfigured`, `401 local_capability_required`, `415 application_json_required`. No CLI runs for a refused call. Before a refusal the bridge reads and discards the body, never parsed, for at most 2 s and about 1 MiB; a body that stalls or passes either limit gets the refusal at once with `Connection: close`, and that client may see a reset instead of the status. Ported from forge-cortex (#27, #28, #30).
 - **Request size limiter** — Enforces `max_request_size_mb` (default 10 MB)
 
 ### Headers
 
 | Header | Direction | Purpose |
 |--------|-----------|---------|
+| `X-AuthorForge-ForgeImages-Capability` | Request | Per-launch capability; required on every route except `/health`. The agent skill sends it from `FORGEIMAGES_BRIDGE_CAPABILITY`, only to a loopback bridge URL |
 | `X-User-ID` | Request | Optional user identification for audit trail |
 | `Content-Type` | Both | `application/json` |
 
@@ -1722,12 +1726,13 @@ required module, and the template list that the bundled CLI returns. It opens no
 socket and writes no file. It exits 0 only when every part works. Any other
 argument exits 2.
 
-The bridge does not require a per-launch capability. It binds to loopback only, which does not stop a local browser page from calling it (KI-IMG-20261030-001, open).
+The bridge requires the per-launch capability in `FORGEIMAGES_BRIDGE_CAPABILITY` on every route except `/health`, and refuses a non-loopback peer, `Host` or bind (KI-IMG-20261030-001; see §6 Middleware).
 
 ## Qualification
 
 `packaging/qualify_frozen.py` runs the binary and checks the runtime report, the
-refusals, `/health`, `/templates`, a compile of a 1080×1080 noise master of more
+refusals, `/health`, four caller-boundary refusals (no capability, wrong
+capability, `Origin`, rebound `Host`) with no audit line, `/templates`, a compile of a 1080×1080 noise master of more
 than 4 MiB, the audit line, and the teardown. `.github/workflows/freeze.yml` runs
 the engine tests, the build and the qualification on ubuntu-22.04, macos-latest
 and windows-latest.

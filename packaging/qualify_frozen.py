@@ -21,6 +21,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import secrets
 import signal
 import socket
 import struct
@@ -50,9 +51,22 @@ def free_port() -> int:
         return sock.getsockname()[1]
 
 
-def request(url: str, body: dict | None = None, timeout: float = 5) -> tuple[int | None, str]:
+# The bridge admits only a loopback caller with the per-launch capability; the
+# qualification mints one, as the AuthorForge shell does at each launch.
+CAPABILITY = secrets.token_urlsafe(32)
+CAPABILITY_HEADER = "X-AuthorForge-ForgeImages-Capability"
+
+
+def request(
+    url: str,
+    body: dict | None = None,
+    timeout: float = 5,
+    headers: dict[str, str] | None = None,
+) -> tuple[int | None, str]:
     data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"} if data else {})
+    sent = {"Content-Type": "application/json"} if data else {}
+    sent.update({CAPABILITY_HEADER: CAPABILITY} if headers is None else headers)
+    req = urllib.request.Request(url, data=data, headers=sent)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as response:
             return response.status, response.read().decode("utf-8", "replace")
@@ -146,7 +160,11 @@ def service(binary: str) -> None:
     audit = os.path.join(home, "audit", "forgeimages.jsonl")
     process = start(
         binary,
-        {"FORGEIMAGES_BRIDGE_PORT": str(port), "FORGEIMAGES_AUDIT_LOG_PATH": audit},
+        {
+            "FORGEIMAGES_BRIDGE_PORT": str(port),
+            "FORGEIMAGES_AUDIT_LOG_PATH": audit,
+            "FORGEIMAGES_BRIDGE_CAPABILITY": CAPABILITY,
+        },
         home,
     )
     base = f"http://127.0.0.1:{port}"
@@ -159,6 +177,22 @@ def service(binary: str) -> None:
         if not healthy:
             print(open(os.path.join(home, "sidecar.log"), errors="replace").read()[-3000:])
             return
+
+        refusals = (
+            ("no capability", {}, 401),
+            ("wrong capability", {CAPABILITY_HEADER: "x" * 43}, 401),
+            ("browser origin", {CAPABILITY_HEADER: CAPABILITY, "Origin": "https://untrusted.invalid"}, 403),
+            ("rebound host", {CAPABILITY_HEADER: CAPABILITY, "Host": f"rebound.invalid:{port}"}, 403),
+        )
+        for label, headers, expected in refusals:
+            code, _ = request(
+                f"{base}/compile/panel-square",
+                {"template_id": "panel-square", "asset_input": {"width": 1, "height": 1}, "source_data": "aGVsbG8="},
+                headers=headers,
+            )
+            check(code == expected, f"caller boundary refuses {label} with {expected} (got {code})")
+        lines = open(audit).read().splitlines() if os.path.exists(audit) else []
+        check(not lines, f"no refused call reached the audit log (got {len(lines)} lines)")
 
         code, body = request(f"{base}/templates")
         ids = {t.get("id") for t in json.loads(body)} if code == 200 else set()

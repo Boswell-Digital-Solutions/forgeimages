@@ -158,12 +158,14 @@ On `/compile`, read the `detail.error` string to tell a rule violation from a re
 
 ### Middleware
 
+- **Caller boundary** (`bridge/local_caller_boundary.py`, runs first) — Only `GET`/`HEAD /health` is public. Every other route needs a loopback peer address, one loopback `Host` on the bound port, no `Origin`, and the per-launch `X-AuthorForge-ForgeImages-Capability` equal to `FORGEIMAGES_BRIDGE_CAPABILITY`. Every `POST` needs `Content-Type: application/json`. Refusals: `403 invalid_local_caller`, `503 local_capability_unconfigured`, `401 local_capability_required`, `415 application_json_required`. No CLI runs for a refused call. Before a refusal the bridge reads and discards the body, never parsed, for at most 2 s and about 1 MiB; a body that stalls or passes either limit gets the refusal at once with `Connection: close`, and that client may see a reset instead of the status. Ported from forge-cortex (#27, #28, #30).
 - **Request size limiter** — Enforces `max_request_size_mb` (default 10 MB)
 
 ### Headers
 
 | Header | Direction | Purpose |
 |--------|-----------|---------|
+| `X-AuthorForge-ForgeImages-Capability` | Request | Per-launch capability; required on every route except `/health`. The agent skill sends it from `FORGEIMAGES_BRIDGE_CAPABILITY`, only to a loopback bridge URL |
 | `X-User-ID` | Request | Optional user identification for audit trail |
 | `Content-Type` | Both | `application/json` |
 
