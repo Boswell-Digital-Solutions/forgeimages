@@ -145,10 +145,16 @@ a file described as print-ready.
 | HTTP Status | Meaning | When |
 |-------------|---------|------|
 | 200 | Success | Valid asset or successful compilation |
-| 404 | Not found | Template ID does not exist |
-| 422 | Validation failure | Asset violates template rules (blocking mode) |
+| 400 | Bad request | `POST /compile/{id}`: the path `template_id` differs from the body's |
+| 404 | Not found | `GET /template/{id}` only: template ID not in the CLI's list |
+| 413 | Too large | `Content-Length` over `max_request_size_mb` (10 MB) |
+| 422 | Validation failure | `/validate`: CLI exit 2. `/compile`: **any** CLI exit 2. That covers rule violations and also an unknown template, a rejected master, or an engine-version mismatch, because the CLI exits 2 for every compile error |
+| 422 | Request schema | FastAPI's own body validation (Pydantic), before the CLI runs |
+| 500 | Engine error | CLI exit 1 (for example an unknown template on `/validate`), or output that is not JSON |
 | 503 | Service unavailable | Rust CLI binary not found |
 | 504 | Timeout | CLI execution exceeded 30 seconds |
+
+On `/compile`, read the `detail.error` string to tell a rule violation from a refused master. The status code alone does not distinguish them.
 
 ### Middleware
 

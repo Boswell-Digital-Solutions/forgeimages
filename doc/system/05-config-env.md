@@ -10,8 +10,12 @@ All bridge configuration uses the `FORGEIMAGES_` prefix via pydantic-settings.
 | `FORGEIMAGES_TEMPLATES_DIR` | Path | `../forgeimages-core/templates` | Directory containing template JSON files |
 | `FORGEIMAGES_AUDIT_LOG_PATH` | Path | `./audit.jsonl` | Audit log output file |
 | `FORGEIMAGES_MAX_REQUEST_SIZE_MB` | int | `10` | Maximum HTTP request body size |
-| `FORGEIMAGES_MAX_PAYLOAD_SIZE_KB` | int | `512` | Maximum JSON payload size |
-| `FORGEIMAGES_ENGINE_VERSION` | str | `"1.0.0"` | Engine version for audit logging |
+| `FORGEIMAGES_MAX_PAYLOAD_SIZE_KB` | int | `512` | Declared but **not enforced**: no code reads it. The request-size middleware uses `MAX_REQUEST_SIZE_MB` only |
+| `FORGEIMAGES_ENGINE_VERSION` | str | `"1.0.0"` | Engine version the bridge uses when it computes an audit job hash itself (validate, and compile when the CLI returned none) |
+
+The frozen sidecar adds `FORGEIMAGES_BRIDGE_HOST` (default `127.0.0.1`) and `FORGEIMAGES_BRIDGE_PORT` (default `8100`). It requires `FORGEIMAGES_AUDIT_LOG_PATH` and exits 2 without it. It defaults the CLI and templates paths to the bundled copies. See §12.
+
+The skill's default bridge URL is `http://127.0.0.1:8100`.
 
 ## CLI Flags
 
@@ -26,16 +30,18 @@ All bridge configuration uses the `FORGEIMAGES_` prefix via pydantic-settings.
 | Flag | Required | Description |
 |------|----------|-------------|
 | `--template` | Yes | Template ID to validate against |
-| `--payload` | Yes | JSON string of AssetInput |
+| `--payload` | Yes | JSON string of AssetInput, or `-` to read it from stdin |
 
 ### Compile Subcommand
 
 | Flag | Required | Description |
 |------|----------|-------------|
 | `--template` | Yes | Template ID to compile against |
-| `--payload` | Yes | JSON string of CompileRequest |
+| `--payload` | Yes | JSON string of CompileRequest, or `-` to read it from stdin |
 
-## Template Configuration (pwa-icon.json)
+## Template Configuration (example: pwa-icon.json)
+
+The five shipped templates are inventoried in §8. The example below shows the contract shape.
 
 Templates are JSON files in the templates directory. Each template defines:
 

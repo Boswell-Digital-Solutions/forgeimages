@@ -1,4 +1,4 @@
-# §7 — Backend Internals
+# §8 — Backend Internals
 
 ## Template System (`templates.rs`)
 
@@ -9,25 +9,41 @@
 - `name: String` — Human-readable name
 - `template_version: Version` — Semver version
 - `engine_min_version: Version` — Minimum compatible engine
-- `asset_class: AssetClass` — Icon, Cover, Banner, or Logo
+- `asset_class: AssetClass` — see below
 - `aspect_ratio: (u32, u32)` — Expected ratio
 - `canonical_size: (u32, u32)` — Ideal dimensions
 - `vector_master: bool` — Whether SVG master is required
 - `validation: ValidationConfig` — Rules and failure mode
 - `exports: Vec<ExportSpec>` — Output specifications
 
-**AssetClass enum** — `Icon | Cover | Banner | Logo`
+**AssetClass enum** — `icon | cover | banner | logo | map | panel | character_portrait | scene_illustration | marketing_social` (the last five were added for AuthorForge)
 
 **FailureMode enum** — Determines what happens when validation finds errors:
 - `Block` (default) — Errors prevent compilation
-- `Warn` — Errors recorded but compilation proceeds
-- `Log` — Errors recorded silently
+- `Warn` — Errors recorded, `valid: true`, compilation proceeds
+- `Log` — Same result as `Warn` in the current engine. `Validator::validate` handles `Warn | Log` in one arm, so the two modes are indistinguishable in output today
 
 **TemplateRegistry** — HashMap-backed registry:
-- `load_from_dir(path)` — Loads all `.json` files from directory
+- `load_from_dir(path)` — Loads all `.json` files from directory. A file that cannot be read or does not parse as a `Template` is **skipped silently**: no error, no log. A typo in a template JSON shows up only as `Template not found` later
 - `get(id)` — Retrieve template by ID
 - `list()` — List all registered templates
 - `register(template)` — Add a template to the registry
+
+### Shipped Templates
+
+> Snapshot fact, read from `forgeimages-core/templates/` on 2026-10-30.
+
+| ID | Class | Version | Ratio | Canonical size | Vector master | Failure mode | Exports (required marked \*) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `pwa-icon` | icon | 1.0.0 | 1:1 | 1024×1024 | yes | block | `master` svg\*, `favicon-16`/`favicon-32`/`apple-touch`/`pwa-192`/`pwa-512` png\* |
+| `book-cover-kdp` | cover | 2.0.0 | 13:9 | 3896×2775 | no | block | `cover-pdf` pdf 3896×2775\*, `cover-preview` jpg 1200×855 |
+| `panel-square` | panel | 2.0.0 | 1:1 | 1080×1080 | no | warn | `panel-square-png` png\*, `panel-square-preview` jpg 270×270 |
+| `panel-fullhd` | panel | 2.0.0 | 16:9 | 1920×1080 | no | warn | `panel-fullhd-png` png\*, `panel-fullhd-preview` jpg 480×270 |
+| `panel-4k` | panel | 2.0.0 | 16:9 | 3840×2160 | no | warn | `panel-4k-png` png\*, `panel-4k-preview` jpg 960×540 |
+
+`pwa-icon` requires a vector master, and this engine has no SVG rasterizer. With an SVG master, its PNG exports are refused (`UnsupportedConversion`). Without a master, it compiles to placeholders. It cannot yet produce a real icon set (§14).
+
+The `required` flag on an `ExportSpec` is carried in the contract, but the pipeline does not branch on it. Every export in the list is produced, or the compile fails.
 
 ### Template Versioning
 
@@ -51,6 +67,12 @@ Validation rules produce violations. Failure mode applies policy. These are inte
 
 1. **Rules** generate `ValidationViolation` structs with severity, message, expected/actual values, and remediation hints
 2. **Validator** collects all violations from all rules, then applies the failure mode policy to determine `valid: bool`
+
+### Rule Library vs Default Rules
+
+`Validator::new()` wires exactly three rules, defined in `validation.rs`: `AspectRatioRule`, `ResolutionRule`, `ColorCountRule`. Those are the only rules the CLI, the bridge and the Tauri commands run.
+
+`rules/` also holds `DimensionMatchRule` (exact size ±2 px), `ColorSpaceRule` (`cmyk_required()` is advisory), and `FileSizeRule` (`kdp()` 650 MB, `ingram_spark()` 600 MB). They implement `ValidationRule` and can be added with `Validator::add_rule`, but **no caller in this repository adds them**. The same holds for `CoverTemplateParams` (spine width from page count and paper stock), `ValidationOutcome` and `PrintSpec`. They are public library API, exported from `lib.rs`, and are not on any served path yet (§14).
 
 ### Three Validation Rules
 
@@ -177,11 +199,34 @@ There is no code path that reaches export generation without first passing throu
 ### Pipeline Steps
 
 1. **Resolve template** — Look up template by ID from registry
-2. **Check engine version** — Semver compatibility check
-3. **Validate asset** — Run 3 rules, apply failure mode
-4. **Generate exports** — Create one ExportedFile per ExportSpec
-5. **Compute hashes** — manifest_hash + job_hash
-6. **Return CompiledAsset** — Immutable result with all metadata
+2. **Validate asset** — `validate_asset()`: engine-version check, then the 3 rules and the failure mode
+3. **Reject on failure** — `valid: false` returns `ValidationFailed` with the joined violation messages
+4. **Ingest the master** — if `source_data` is present: `source_master::decode` then `check_admissible` (vector-master requirement, declared vs real dimensions). Any failure is `SourceMasterRejected`
+5. **Generate exports** — one `ExportedFile` per `ExportSpec`. With a master: `source_master::render_export`, which fails the compile on any conversion it cannot honour. Without a master: placeholders (an empty `<svg>`, a 1×1 PNG, or the bytes `placeholder` for every other format)
+6. **Compute hashes** — `job_hash` over template id, template version, the canonical request and the engine version; then `manifest_hash` over the whole `CompiledAsset`
+7. **Return CompiledAsset**
+
+`CompiledAsset.id` is a fresh UUIDv4 and `created_at` is the wall clock, and both are inside the hashed manifest. So `manifest_hash` differs on every compile, even for identical input. Reproducibility is carried by `job_hash` and by each export's `hash`, which are stable (Law 4).
+
+## Source Master Ingestion (`source_master.rs`)
+
+`decode` base64-decodes `source_data` and identifies it. Text starting `<svg`, or `<?xml` containing `<svg`, after an optional BOM, is SVG. Anything the `image` crate can decode is a raster, and its real dimensions are recorded. Empty, undecodable or unrecognised input is an error. It is never treated as "no master supplied".
+
+`check_admissible` refuses a raster master for a `vectorMaster: true` template. It also refuses any raster whose real dimensions differ from the `asset_input` the validator approved.
+
+`render_export` conversion matrix:
+
+| Master → export | Result |
+| --- | --- |
+| SVG → SVG | Pass-through bytes |
+| raster → PNG / JPG | Pass-through when format and size already match, otherwise a Lanczos3 resize and re-encode (deterministic) |
+| raster → PDF | PDF/X-1a:2001 via `pdf.rs`, only for opaque 8-bit grayscale. RGB is refused (`PrintColorNotAdmissible`), alpha is refused (`PrintTransparencyNotAllowed`) |
+| SVG → anything else | Refused: no rasterizer |
+| raster → SVG, any → ICO | Refused |
+
+The PDF path uses a fixed 300 DPI and a 0.125" KDP bleed for the `TrimBox` (constants in `source_master.rs`), with `OutputIntent::kdp_us_swop()`.
+
+### Three Validation Rules
 
 ### ExportedFile
 

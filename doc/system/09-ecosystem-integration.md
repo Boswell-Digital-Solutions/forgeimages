@@ -1,11 +1,11 @@
-# §8 — Ecosystem Integration
+# §9 — Ecosystem Integration
 
 ## Integration Map
 
 ```
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
 │  VibeForge   │     │ ForgeAgents  │     │ AuthorForge  │
-│ (consumer)   │     │ (orch.)      │     │ (future)     │
+│ (not wired)  │     │ (orch.)      │     │ (active)     │
 └──────┬───────┘     └──────┬───────┘     └──────┬───────┘
        │                    │                    │
        │    ┌───────────────┘                    │
@@ -73,29 +73,24 @@ validation, asset = await skill.validate_and_compile("pwa-icon", width=512, heig
 
 The skill includes `X-User-ID` in all requests (if set at construction), enabling audit trail attribution.
 
-## VibeForge Integration (Planned)
+## AuthorForge Integration (Active)
 
-VibeForge is the primary consumer of ForgeImages. The planned integration:
+AuthorForge is the shipping consumer. It vendors this repository as the `third_party/forgeimages` submodule (`git@github.com:Boswell-Digital-Solutions/forgeimages.git`) and uses it two ways:
 
-- **Prompt-to-image workflows** — VibeForge generates image candidates via AI, ForgeImages validates and compiles them
-- **Tauri IPC** — Future Tauri commands will wrap ForgeImages operations for desktop use
-- **Template browsing** — VibeForge UI will display available templates and their constraints
+| Surface | What AuthorForge uses | Chapter |
+| --- | --- | --- |
+| Desktop validation | `forgeimages-tauri` commands, registered in AuthorForge `src-tauri/src/main.rs`, with templates bundled from AuthorForge's own `src-tauri/forgeimages-templates/` | §7 |
+| Image-generation lane | The frozen `forgeimages-bridge` sidecar in release bundles. NeuronForge Local sends every diffusion master to it at `FORGEIMAGES_URL` (port 8100) | §12 |
 
-**Status:** Not yet implemented. Requires Tauri command integration.
+AuthorForge owns its submodule pin. A change here reaches AuthorForge only when AuthorForge bumps `third_party/forgeimages` (§17).
 
-## AuthorForge Integration (Future)
+## VibeForge Integration (Not Implemented)
 
-AuthorForge will use ForgeImages for:
+Earlier plans named VibeForge as the primary consumer, through Tauri commands. No VibeForge code consumes ForgeImages. The Tauri crate that exists (§7) was built for AuthorForge. Treat VibeForge integration as unscheduled.
 
-- **Book covers** — Cover template with specific aspect ratios and export formats
-- **Print PDF** — CMYK color space via PrintAuthority
-- **Chapter illustrations** — Banner/icon templates for digital and print
-- **Print bleed** — Physical bleed specifications from PrintSpec
+## NeuroForge Cloud Fulfillment (Contracts Only)
 
-**Status:** Not yet implemented. Requires CMYK export pipeline and print templates.
-
-AuthorForge release bundles ship the bridge as the `forgeimages-bridge` sidecar
-for the image-generation lane. See §12 — Frozen Bridge Sidecar.
+NeuroForge owns cloud generation and the fulfillment saga. ForgeImages owns deterministic validation. The bridge package carries the v1 request/result contracts, the profile registry, the offline `DeterministicCloudAssetValidator` and the self-verifying manifest (§6, §8). **No HTTP route serves them.** No artifact-byte retrieval, durable manifest store or replacement loop exists. Evidence for Slices 01 and 02 is under `reports/forgeimages-verification/`.
 
 ## DataForge Integration
 
@@ -124,7 +119,7 @@ This maintains the DataForge source-of-truth contract while keeping ForgeImages 
 | Property | Value |
 |----------|-------|
 | Interface | Subprocess (stdin/stdout) |
-| Input | JSON via `--payload` flag |
+| Input | JSON on stdin via `--payload -` (always, for validate and compile) |
 | Output | JSON on stdout |
 | Exit 0 | Success |
 | Exit 2 | Validation/compilation failure |

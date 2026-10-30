@@ -19,7 +19,7 @@
 - root `CLAUDE.md`
 - modular `doc/system/`
 - `doc/system/BUILD.sh`
-- root `SYSTEM.md`
+- `doc/imgSYSTEM.md` (compiled from `doc/system/`)
 - `scripts/context-bundle.sh`
 
 ## Phase 1 — Exact Surface Expansion

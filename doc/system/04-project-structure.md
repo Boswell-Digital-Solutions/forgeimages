@@ -3,104 +3,103 @@
 ## Directory Tree
 
 ```
-ForgeImages/
-├── README.md                          # Project overview and quick start
-├── CLAUDE.md                          # AI assistant coding standards
-├── .gitignore                         # Build artifacts, venvs, audit logs
+forgeimages/
+├── README.md                          # Overview, Documentation Contract, quick start
+├── CLAUDE.md                          # Agent contract: Six Laws, verification, non-obvious rules
+├── LICENSE                            # Proprietary, Boswell Digital Solutions LLC
+├── Cargo.toml / Cargo.lock            # Workspace (core + tauri); lock is tracked
+├── .github/workflows/freeze.yml       # Engine tests + frozen-sidecar build and qualification
 │
-├── doc/                               # Forge Documentation Protocol docs
-│   ├── system/                        # Modular system documentation parts
-│   │   ├── _index.md                  # Master table of contents
-│   │   ├── 01-overview-philosophy.md  # §1: Six Laws, ecosystem role
-│   │   ├── 02-architecture.md         # §2: Trust boundary, data flow
-│   │   ├── 03-tech-stack.md           # §3: Dependencies and versions
-│   │   ├── 04-project-structure.md    # §4: This file
-│   │   ├── 05-config-env.md           # §5: Environment and CLI flags
-│   │   ├── 06-api-layer.md            # §6: Bridge endpoints, CLI commands
-│   │   ├── 07-backend-internals.md    # §7: Template, validation, hashing, pipeline
-│   │   ├── 08-ecosystem-integration.md # §8: ForgeAgents, VibeForge, AuthorForge
-│   │   ├── 09-error-handling.md       # §9: 422 contract, exit codes, violations
-│   │   ├── 10-testing.md             # §10: Invariant + boundary tests
-│   │   ├── 11-handover.md            # §11: Constraints, deployment, future
-│   │   └── BUILD.sh                   # Assembles parts into context-bundle.md
-│   └── SYSTEM.md                      # Generated: full assembled reference
+├── doc/
+│   ├── system/                        # Canonical source of truth (this document)
+│   │   ├── _index.md                  # Header, truth classes, chapter table
+│   │   ├── NN-*.md                    # 18 flat numbered chapters
+│   │   ├── system_manifest.json       # Machine section map (bds.repo_doc_system_manifest.v1)
+│   │   ├── BUILD.sh                   # Fail-closed assembly
+│   │   └── validate_snapshots.sh      # Snapshot and manifest/index validation
+│   └── imgSYSTEM.md                   # Generated: assembled reference (do not edit)
 │
-├── scripts/
-│   └── context-bundle.sh             # AI session context generator (presets)
+├── docs/
+│   ├── KNOWN_ISSUES.md                # KI-IMG-* findings, root causes, scope
+│   ├── forgeimages_architecture_spec.md   # Design intent (subordinate to doc/system/)
+│   └── forgeimages_extended_roadmap.md    # Roadmap (subordinate to doc/system/)
 │
-├── files/                             # Design documentation (pre-implementation)
-│   ├── README.md                      # ForgeAgents integration guide
-│   ├── CONTEXT.md                     # Trust boundary architecture
-│   ├── step1-rust-core.md             # Rust core design spec
-│   ├── step2-rust-cli.md              # CLI design spec
-│   ├── step3-python-bridge.md         # Bridge service design spec
-│   ├── step4-python-skill.md          # Skill wrapper design spec
-│   ├── step5-tests.md                 # Test strategy spec
-│   └── VSCODE_CLAUDE_PROMPT.md        # Implementation prompt
+├── reports/forgeimages-verification/  # Dated evidence: cloud-image Slice 01 and 02
+├── files/                             # Pre-implementation design specs (historical)
+├── scripts/context-bundle.sh          # AI session context generator
 │
-├── forgeimages-core/                  # Rust core engine
-│   ├── Cargo.toml                     # Package: forgeimages-core v1.0.0, edition 2024
+├── packaging/                         # Frozen forgeimages-bridge sidecar (§12)
+│   ├── build.sh                       # One-commit build: CLI (--locked) + bridge + templates
+│   ├── forgeimages-bridge.spec        # PyInstaller spec
+│   ├── freeze_entry.py                # Sidecar entry point, --runtime-info, env contract
+│   ├── freeze_env.sh                  # Shared CPython 3.12 helper (same as forge-neuronforge)
+│   ├── qualify_frozen.py              # Runs and checks the frozen binary
+│   └── requirements-freeze.{in,txt}   # Hashed universal lock
+│
+├── forgeimages-core/                  # Rust engine (v1.0.0, edition 2024)
 │   ├── src/
-│   │   ├── lib.rs                     # Library root — Six Laws, public API exports
-│   │   ├── templates.rs               # Template contracts (TemplateRegistry, AssetClass, ExportSpec)
-│   │   ├── validation.rs              # Rule/policy separation (3 rules, Validator, FailureMode)
-│   │   ├── hashing.rs                 # SHA-256 manifests (canonical JSON, job_hash, manifest_hash)
-│   │   ├── print.rs                   # PrintAuthority enum (System/Template/User, DPI/CMYK)
-│   │   ├── pipeline.rs               # CompilationPipeline (compile ALWAYS validates, exports)
-│   │   └── bin/
-│   │       └── forgeimages_cli.rs     # CLI binary (templates, validate, compile subcommands)
-│   ├── templates/
-│   │   └── pwa-icon.json              # PWA icon template (1:1, 512px min, 6 PNG + 1 SVG)
+│   │   ├── lib.rs                     # Six Laws, public re-exports, ENGINE_VERSION
+│   │   ├── templates.rs               # Template contract types, TemplateRegistry
+│   │   ├── validation.rs              # ValidationRule trait, 3 default rules, Validator + failure-mode policy
+│   │   ├── rules/                     # Rule library: aspect_ratio, resolution, color_count,
+│   │   │                              #   dimensions, color_space, file_size (not in the default Validator)
+│   │   ├── pipeline.rs                # CompilationPipeline: validate → master → exports → hashes
+│   │   ├── source_master.rs           # Decode, identify, admit and convert a caller's master
+│   │   ├── pdf.rs                     # Deterministic raster → PDF/X-1a:2001 writer
+│   │   ├── hashing.rs                 # Canonical JSON, SHA-256, job/manifest hashes, provenance types
+│   │   ├── print.rs                   # PrintAuthority, PrintSpec, ColorSpace
+│   │   ├── cover_params.rs            # Book-cover spine/bleed dimension resolver
+│   │   ├── validation_outcome.rs      # ScreenOnly / PrintReady / PrintAdvisory / Draft / Rejected
+│   │   ├── file_validation.rs         # Read real dimensions/format from a file (Tauri path)
+│   │   └── bin/forgeimages_cli.rs     # CLI: templates, validate, compile; --payload - reads stdin
+│   ├── templates/                     # 5 template contracts (§8)
 │   └── tests/
-│       └── invariants.rs              # Contract invariant tests (6 tests)
+│       ├── invariants.rs              # 6 contract invariants
+│       ├── source_master.rs           # 19 master ingestion / conversion tests
+│       └── cli_payload.rs             # 3 stdin payload tests
 │
-└── forgeagents-forgeimages/           # Python agent integration
-    ├── pyproject.toml                 # Package: forgeagents-forgeimages v1.0.0, Python >=3.10
-    ├── bridge/                        # FastAPI bridge service
-    │   ├── __init__.py                # Package init
-    │   ├── cloud_fulfillment_contracts.py # Versioned NeuroForge validation contracts
-    │   ├── cloud_fulfillment_manifest.py # Deterministic validation manifest
-    │   ├── cloud_fulfillment_profiles.py # Immutable technical profiles
-    │   ├── cloud_fulfillment_validation.py # Offline candidate validator
-    │   ├── forgeimages_bridge.py      # HTTP endpoints (health, templates, validate, compile)
-    │   ├── models.py                  # Pydantic v2 models (AssetInput, CompileRequest, etc.)
-    │   ├── settings.py                # Configuration (FORGEIMAGES_ env prefix)
-    │   └── audit.py                   # Append-only JSONL audit logging
-    ├── skill/                         # ForgeAgents skill wrapper
-    │   ├── __init__.py                # Package init
-    │   └── forgeimages_skill.py       # ForgeImagesSkill class (async httpx client)
-    └── tests/
-        ├── test_agent_boundary.py     # Agent boundary enforcement tests
-        ├── test_forgeimages_asset_manifest.py
-        ├── test_forgeimages_asset_validator.py
-        ├── test_forgeimages_validation_contracts.py
-        └── test_forgeimages_rejection_report_contract.py
+├── forgeimages-tauri/                 # Tauri 2 IPC commands for AuthorForge (§7)
+│   └── src/{lib.rs, commands.rs}
+│
+└── forgeagents-forgeimages/           # Python package (v1.0.0, Python >=3.10, hatchling)
+    ├── bridge/                        # FastAPI bridge + audit + cloud-fulfillment contracts
+    ├── skill/                         # ForgeImagesSkill async httpx client
+    └── tests/                         # Boundary, CLI payload, cloud-fulfillment tests
 ```
 
 ## Key Module Responsibilities
 
-### Rust Modules
+> Line counts are snapshot facts, counted 2026-10-30.
 
-| Module | LOC | Responsibility |
-|--------|-----|----------------|
-| `lib.rs` | 25 | Six Laws docstring, public API re-exports, version constants |
-| `templates.rs` | 176 | Template, AssetClass, ValidationConfig, ExportSpec, TemplateRegistry |
-| `validation.rs` | 224 | 3 rules (AspectRatio, Resolution, ColorCount), Validator, FailureMode |
-| `hashing.rs` | 102 | SHA-256, canonical JSON (sorted keys), job_hash, manifest_hash |
-| `print.rs` | 81 | PrintAuthority enum, PrintSpec, ColorSpace, DPI/bleed validation |
-| `pipeline.rs` | 272 | CompilationPipeline, CompileRequest, CompiledAsset, ExportedFile |
-| `forgeimages_cli.rs` | 149 | Clap CLI: templates, validate (exit 2), compile (exit 2) |
+### Rust Modules (`forgeimages-core/src/`)
 
-### Python Modules
+| Module | Lines | Responsibility |
+|--------|-------|----------------|
+| `lib.rs` | 37 | Six Laws docstring, public API re-exports, `ENGINE_VERSION`, `MIN_TEMPLATE_VERSION` |
+| `templates.rs` | 196 | `Template`, `AssetClass`, `ValidationConfig`, `FailureMode`, `ExportSpec`, `ExportFormat`, `TemplateRegistry` |
+| `validation.rs` | 244 | `ValidationRule` trait, `AspectRatioRule`, `ResolutionRule`, `ColorCountRule`, `Validator` (policy) |
+| `rules/` | 407 | Per-rule modules, including `DimensionMatchRule`, `ColorSpaceRule`, `FileSizeRule` for Cover Forge |
+| `pipeline.rs` | 317 | `CompilationPipeline`, `CompileRequest`, `CompiledAsset`, `ExportedFile`, `PipelineError` |
+| `source_master.rs` | 402 | `decode`, `check_admissible`, `render_export`, `SourceMasterError` |
+| `pdf.rs` | 770 | `write_pdf_x1a`, `DeviceColor`, `OutputIntent`, `IccProfile`, `PrintGeometry` |
+| `hashing.rs` | 165 | `canonical_json`, `sha256_hex`, `compute_job_hash`, `compute_manifest_hash`, `SourceType`, `AssetManifest` |
+| `print.rs` | 80 | `PrintAuthority`, `PrintSpec`, `ColorSpace` |
+| `cover_params.rs` | 162 | `CoverTemplateParams`, `PaperStock`, `ResolvedCoverDimensions` |
+| `validation_outcome.rs` | 62 | `ValidationOutcome` clearance levels |
+| `file_validation.rs` | 54 | `validate_from_file` |
+| `bin/forgeimages_cli.rs` | 181 | Clap CLI, exit-code contract |
+| `forgeimages-tauri/src/commands.rs` | 96 | 3 Tauri commands, `ForgeImagesState`, `init_state` |
 
-| Module | LOC | Responsibility |
-|--------|-----|----------------|
-| `models.py` | 93 | Pydantic v2 models mirroring Rust types |
-| `cloud_fulfillment_contracts.py` | — | Strict v1 validation request, result, rejection, and compiled-asset records |
-| `cloud_fulfillment_manifest.py` | — | Canonical manifest construction and digest verification |
-| `cloud_fulfillment_profiles.py` | — | Read-only profile registry for technical production thresholds |
-| `cloud_fulfillment_validation.py` | — | Provider-free MIME, resolution, ratio, safe-zone, and crop metadata checks |
-| `settings.py` | 33 | Environment-based config (FORGEIMAGES_ prefix) |
-| `audit.py` | 105 | Append-only JSONL audit log with job hash linkage |
-| `forgeimages_bridge.py` | 272 | FastAPI app with 5 endpoints, CLI subprocess calls |
-| `forgeimages_skill.py` | 378 | ForgeImagesSkill class, async httpx, error handling |
+### Python Modules (`forgeagents-forgeimages/`)
+
+| Module | Lines | Responsibility |
+|--------|-------|----------------|
+| `bridge/forgeimages_bridge.py` | 275 | FastAPI app, 5 endpoints, `call_cli` (payload on stdin), size-limit middleware |
+| `bridge/models.py` | 110 | Pydantic v2 models mirroring the Rust types |
+| `bridge/audit.py` | 104 | Append-only JSONL audit log with job hash |
+| `bridge/settings.py` | 32 | `FORGEIMAGES_*` configuration |
+| `bridge/cloud_fulfillment_contracts.py` | 168 | Strict v1 request/result/rejection/compiled-asset records |
+| `bridge/cloud_fulfillment_profiles.py` | 118 | Immutable validation profile registry |
+| `bridge/cloud_fulfillment_validation.py` | 296 | `DeterministicCloudAssetValidator` |
+| `bridge/cloud_fulfillment_manifest.py` | 76 | Self-verifying `ForgeImagesAssetManifestV1` |
+| `skill/forgeimages_skill.py` | 377 | `ForgeImagesSkill`, `ForgeImagesError`, result wrappers |
