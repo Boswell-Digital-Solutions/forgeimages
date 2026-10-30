@@ -65,7 +65,7 @@ pub fn compute_job_hash(
 ///
 /// Supports "100% Human-Made" certification chain in AuthorForge.
 /// Stored in AssetManifest as an optional field (additive, not breaking).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SourceType {
     /// Created entirely by a human (no AI tools)
@@ -77,13 +77,8 @@ pub enum SourceType {
     /// Imported from external source (stock photo, licensed art)
     Imported,
     /// Origin unknown or not declared
+    #[default]
     Unknown,
-}
-
-impl Default for SourceType {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 /// Extended asset manifest with provenance tracking.

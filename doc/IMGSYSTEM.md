@@ -1354,8 +1354,9 @@ Scope and authority boundary of this documentation system.
 | Layer | Tests | File | Framework |
 |-------|-------|------|-----------|
 | Rust invariants | 6 | `forgeimages-core/tests/invariants.rs` | cargo test |
-| Rust core | 48 | inline + `forgeimages-core/tests/` | cargo test |
+| Rust core | 45 | inline (23), `tests/cli_payload.rs` (3), `tests/source_master.rs` (19) | cargo test |
 | Python agent boundaries | 18 | `forgeagents-forgeimages/tests/test_agent_boundary.py` | pytest |
+| Bridge CLI payload transport | 2 | `test_bridge_cli_payload.py` | pytest |
 | Cloud validation contracts | 18 | `test_forgeimages_validation_contracts.py`, `test_forgeimages_rejection_report_contract.py` | pytest |
 | Cloud validator and manifests | 14 | `test_forgeimages_asset_validator.py`, `test_forgeimages_asset_manifest.py` | pytest |
 
@@ -1477,6 +1478,20 @@ cd forgeagents-forgeimages && \
 # Python tests with coverage
 cd forgeagents-forgeimages && pytest tests/ -v --cov=bridge --cov=skill
 ```
+
+## Continuous Integration
+
+`.github/workflows/ci.yml` runs on every pull request to `master` and every push to `master`. It has three jobs:
+
+| Job | Commands | Notes |
+|-----|----------|-------|
+| Rust | `cargo fmt --all -- --check`, `cargo clippy --locked --workspace --all-targets -- -D warnings`, `cargo test --locked --workspace` | Toolchain pinned to 1.97.0. Installs GTK and WebKitGTK, because `forgeimages-tauri` links Tauri. |
+| Python | `pytest tests/ -q` in `forgeagents-forgeimages` | Python 3.12. Runtime dependencies come from the hashed `packaging/requirements-freeze.txt`. |
+| Documentation | `bash doc/system/BUILD.sh`, then `git diff --exit-code -- doc/` | Fails when `doc/IMGSYSTEM.md` differs from its parts. |
+
+`.github/workflows/freeze.yml` is separate. It freezes and runs the sidecar on Linux, macOS, and Windows, and runs only when packaging or engine paths change.
+
+A workflow that exists is not a required check. Making `CI` a required status check is a separate repository-settings decision.
 
 ## Test Philosophy
 
