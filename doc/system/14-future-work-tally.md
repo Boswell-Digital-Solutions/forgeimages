@@ -25,7 +25,7 @@ This chapter lists what the code does **not** do yet, or does in a way a reader 
 
 | # | Gap | Where | Effect |
 | --- | --- | --- | --- |
-| G0 | The bridge accepts a call from any local caller, including a browser page via DNS rebinding: no `Host`, `Origin` or capability check | `forgeimages_bridge.py` | **Tracked as KI-IMG-20261030-001 (open, medium).** Impact is CPU use and audit rows. No file paths cross the boundary |
+| G0 | Closed. The bridge admitted any local caller, including a browser page via DNS rebinding. The caller boundary is merged (`f308cdd`, #13): loopback peer and `Host`, no `Origin`, the per-launch capability. AuthorForge pins it and proves its real image path in the release smoke (Author-Forge #934, #935) | `bridge/local_caller_boundary.py` | **KI-IMG-20261030-001 (closed).** |
 | G10 | `/compile` returns 422 for every engine error | CLI + bridge | A rule failure, an unknown template and a refused master share one status. Distinguish them by `detail.error` |
 | G11 | `FORGEIMAGES_MAX_PAYLOAD_SIZE_KB` is declared and never read | `settings.py` | Only the 10 MB request limit applies |
 | G12 | The validate audit `job_hash` uses the bridge's configured `engine_version`, not the CLI's | `forgeimages_bridge.py` | If the two diverge, the audit hash names the wrong engine |
