@@ -1,0 +1,74 @@
+name: CI
+
+# The pull-request gate. freeze.yml qualifies the frozen sidecar on three
+# platforms but runs only when packaging or engine paths change. This workflow
+# runs on every change: Rust format, lint and tests for the whole workspace,
+# the Python bridge and skill tests, and documentation parity.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    name: Rust (fmt, clippy, test)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      # Pinned so a new stable release cannot add a lint and turn a clean head red.
+      RUST_TOOLCHAIN: "1.97.0"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Tauri system libraries
+        # forgeimages-tauri links tauri, which needs GTK and WebKitGTK to build.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev
+      - name: Rust toolchain
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component rustfmt,clippy
+          rustup default "$RUST_TOOLCHAIN"
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - name: Tests (includes the six contract invariants)
+        run: cargo test --locked --workspace
+
+  python:
+    name: Python bridge and skill tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Runtime dependencies from the hashed lock
+        run: python -m pip install --require-hashes -r packaging/requirements-freeze.txt
+      - name: Test dependencies
+        run: python -m pip install "pytest>=7.4.0" "pytest-asyncio>=0.21.0" "httpx>=0.25.0"
+      - name: Tests
+        working-directory: forgeagents-forgeimages
+        run: python -m pytest tests/ -q
+
+  docs:
+    name: Documentation parity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Rebuild doc/IMGSYSTEM.md from doc/system/
+        run: bash doc/system/BUILD.sh
+      - name: The committed artifact matches its parts
+        run: git diff --exit-code -- doc/
