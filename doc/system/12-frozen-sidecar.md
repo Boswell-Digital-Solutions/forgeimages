@@ -42,12 +42,13 @@ required module, and the template list that the bundled CLI returns. It opens no
 socket and writes no file. It exits 0 only when every part works. Any other
 argument exits 2.
 
-The bridge does not require a per-launch capability. It binds to loopback only, which does not stop a local browser page from calling it (KI-IMG-20261030-001, open).
+The bridge requires the per-launch capability in `FORGEIMAGES_BRIDGE_CAPABILITY` on every route except `/health`, and refuses a non-loopback peer, `Host` or bind (KI-IMG-20261030-001; see §6 Middleware).
 
 ## Qualification
 
 `packaging/qualify_frozen.py` runs the binary and checks the runtime report, the
-refusals, `/health`, `/templates`, a compile of a 1080×1080 noise master of more
+refusals, `/health`, four caller-boundary refusals (no capability, wrong
+capability, `Origin`, rebound `Host`) with no audit line, `/templates`, a compile of a 1080×1080 noise master of more
 than 4 MiB, the audit line, and the teardown. `.github/workflows/freeze.yml` runs
 the engine tests, the build and the qualification on ubuntu-22.04, macos-latest
 and windows-latest.

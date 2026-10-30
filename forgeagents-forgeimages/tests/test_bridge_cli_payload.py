@@ -10,6 +10,7 @@ import json
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 from bridge import forgeimages_bridge
@@ -25,8 +26,24 @@ def _recording_run(calls, stdout):
     return run
 
 
+_CAPABILITY = "synthetic-capability-" + "b" * 48
+
+
+@pytest.fixture(autouse=True)
+def _launch_capability(monkeypatch):
+    monkeypatch.setenv("FORGEIMAGES_BRIDGE_CAPABILITY", _CAPABILITY)
+
+
 def _client():
-    return TestClient(forgeimages_bridge.app, raise_server_exceptions=False)
+    # The bridge admits only a loopback caller with the per-launch capability
+    # (bridge/local_caller_boundary.py); call it as AuthorForge's callers do.
+    return TestClient(
+        forgeimages_bridge.app,
+        base_url="http://127.0.0.1",
+        client=("127.0.0.1", 50000),
+        headers={"X-AuthorForge-ForgeImages-Capability": _CAPABILITY},
+        raise_server_exceptions=False,
+    )
 
 
 def test_compile_sends_the_payload_on_stdin_not_argv():

@@ -25,6 +25,7 @@ from .models import (
     TemplateInfo,
 )
 from .audit import AuditLogger
+from .local_caller_boundary import LocalCallerBoundary
 from .settings import settings
 
 
@@ -85,6 +86,12 @@ async def limit_request_size(request: Request, call_next):
                 content={"detail": "Request too large"}
             )
     return await call_next(request)
+
+
+# Added last, so it runs first: every route except GET/HEAD /health needs a
+# loopback peer and Host, no Origin, and the per-launch capability. See
+# local_caller_boundary.py.
+app.add_middleware(LocalCallerBoundary)
 
 
 @app.get("/health")

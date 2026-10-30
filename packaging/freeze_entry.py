@@ -109,6 +109,13 @@ def main() -> int:
     from bridge.forgeimages_bridge import app
 
     host = os.environ.get("FORGEIMAGES_BRIDGE_HOST", "127.0.0.1")
+    if host not in {"127.0.0.1", "::1", "localhost"}:
+        print(
+            "forgeimages-bridge: loopback-only; FORGEIMAGES_BRIDGE_HOST must be "
+            "127.0.0.1, ::1 or localhost",
+            file=sys.stderr,
+        )
+        return 2
     port = int(os.environ.get("FORGEIMAGES_BRIDGE_PORT", "8100"))
     uvicorn.run(app, host=host, port=port, log_level="info")
     return 0

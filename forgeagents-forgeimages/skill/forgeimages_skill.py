@@ -11,9 +11,30 @@ CRITICAL: Agents suggest, ForgeImages enforces.
 - HTTP 422 = validation failure (agent must adjust request)
 """
 
+import ipaddress
+import os
 from typing import Optional, Any
 from dataclasses import dataclass
+from urllib.parse import urlsplit
+
 import httpx
+
+# The bridge refuses every route except /health without the per-launch
+# capability (bridge/local_caller_boundary.py). The skill sends it from this
+# variable, and only to a loopback bridge, so it never leaves the machine.
+CAPABILITY_ENV = "FORGEIMAGES_BRIDGE_CAPABILITY"
+CAPABILITY_HEADER = "X-AuthorForge-ForgeImages-Capability"
+
+
+def _is_loopback_url(url: str) -> bool:
+    try:
+        parts = urlsplit(url)
+        host = parts.hostname
+        if parts.scheme not in {"http", "https"} or parts.username or parts.password or not host:
+            return False
+        return host.lower() == "localhost" or ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
 
 
 class ForgeImagesError(Exception):
@@ -139,6 +160,9 @@ class ForgeImagesSkill:
         headers = {"Content-Type": "application/json"}
         if self.user_id:
             headers["X-User-ID"] = self.user_id
+        capability = os.environ.get(CAPABILITY_ENV, "").strip()
+        if capability and _is_loopback_url(self.bridge_url):
+            headers[CAPABILITY_HEADER] = capability
         return headers
 
     async def _request(
