@@ -68,7 +68,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Rebuild doc/IMGSYSTEM.md from doc/system/
+      - name: Rebuild doc/imgSYSTEM.md from doc/system/
         run: bash doc/system/BUILD.sh
       - name: The committed artifact matches its parts
         run: git diff --exit-code -- doc/

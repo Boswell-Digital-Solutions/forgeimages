@@ -1,13 +1,13 @@
-# ForgeImages - Compiled System Reference
+# ForgeImages — Compiled System Reference
 
-**Designation:** IMG
-**Document role:** Canonical compiled technical reference for the ForgeImages asset pipeline
+**Designation:** img
+**Document role:** Canonical compiled technical reference for the ForgeImages asset validation and compilation pipeline
 **Source:** `doc/system/`
 **Build command:** `bash doc/system/BUILD.sh`
-**Document version:** 2.0 (2026-06-22) - canonical compliance migration
+**Document version:** 3.0 (2026-10-30) — canonicalized to the Forge_Command doc-system shape
 **Protocol:** BDS Documentation Protocol v2.0; BDS Repo Documentation System Canonical Compliance Standard
 
-> **Generated artifact warning:** `doc/IMGSYSTEM.md` is assembled output. Edit
+> **Generated artifact warning:** `doc/imgSYSTEM.md` is assembled output. Edit
 > the source modules under `doc/system/` and rebuild. Hand edits to the
 > compiled artifact are overwritten by the next build.
 
@@ -15,35 +15,43 @@ Assembly contract:
 
 - Command: `bash doc/system/BUILD.sh`
 - Validation: `bash doc/system/validate_snapshots.sh` runs during assembly
-- Primary output: `doc/IMGSYSTEM.md`
+- Machine source map: `doc/system/system_manifest.json`
+- Primary output: `doc/imgSYSTEM.md`
 
-This `doc/system/` tree is the canonical source of truth for ForgeImages. It
-uses explicit **truth classes**: canonical facts define the repo role, authority
-boundaries, runtime behavior, service contracts, and verification doctrine;
-snapshot facts are dated, audit-derived counts and current implementation
-inventory that may drift between audits.
+This `doc/system/` tree is the canonical source of truth for ForgeImages
+(`Boswell-Digital-Solutions/forgeimages`, the repository AuthorForge vendors as
+`third_party/forgeimages`). It is not the documentation for the separate
+`Forge_Images` repository (designation `ima`). It uses explicit **truth
+classes**: *canonical facts* define role, the Six Laws, authority boundaries,
+contracts and invariants; *snapshot facts* are dated, audit-derived counts and
+inventories (files, lines, tests, templates, gaps) that drift between audits.
+See §15 for the scope and authority order.
+
+`system_manifest.json` is the fail-closed, machine-readable map from owned
+repository surfaces to chapters, agent profiles, truth classes and maintenance
+triggers. `_index.md` remains the human navigation authority. The build fails if
+the two disagree.
 
 | Part | File | Contents |
 | --- | --- | --- |
-| §1 | `01-overview-philosophy.md` | §1 — Overview & Philosophy |
-| §2 | `02-architecture.md` | §2 — Architecture |
-| §3 | `04-project-structure.md` | §4 — Project Structure |
-| §4 | `06-api-layer.md` | §6 — API Layer |
-| §5 | `07-backend-internals.md` | §7 — Backend Internals |
-| §6 | `09-error-handling.md` | §9 — Error Handling |
-| §7 | `03-tech-stack.md` | §3 — Tech Stack |
-| §8 | `08-ecosystem-integration.md` | §8 — Ecosystem Integration |
-| §9 | `10-scope.md` | Scope |
-| §10 | `30-governance.md` | Governance |
-| §11 | `40-change-control.md` | Change Control |
-| §12 | `05-config-env.md` | §5 — Configuration & Environment |
-| §13 | `10-testing.md` | §10 — Testing |
-| §14 | `11-handover.md` | §11 — Handover |
-| §15 | `20-structure.md` | §4 — Project Structure |
-| §16 | `90-appendices.md` | Appendices |
-| §17 | `91-bootstrap-overview.md` | §1 — Overview & Philosophy |
-| §18 | `92-bootstrap-architecture.md` | §2 — Architecture |
-| §19 | `12-frozen-sidecar.md` | §12 — Frozen Bridge Sidecar |
+| §1 | `01-overview-philosophy.md` | Service identity, Six Laws, ecosystem role, metrics |
+| §2 | `02-architecture.md` | Trust boundary, entry paths, data flow, key decisions |
+| §3 | `03-tech-stack.md` | Rust, Tauri, Python and freeze dependencies |
+| §4 | `04-project-structure.md` | Directory tree, module responsibilities |
+| §5 | `05-config-env.md` | Environment variables, CLI flags, defaults |
+| §6 | `06-api-layer.md` | Bridge HTTP endpoints, models, cloud-fulfillment contracts, CLI |
+| §7 | `07-tauri-command-interface.md` | Tauri IPC commands consumed by AuthorForge |
+| §8 | `08-backend-internals.md` | Templates, validation, source masters, PDF writer, pipeline, hashing, audit |
+| §9 | `09-ecosystem-integration.md` | AuthorForge, ForgeAgents, NeuroForge, DataForge contracts |
+| §10 | `10-error-handling.md` | 422 contract, error types, exit codes, bridge responses |
+| §11 | `11-testing.md` | Test inventory, invariants, running tests |
+| §12 | `12-frozen-sidecar.md` | Frozen `forgeimages-bridge` sidecar build and runtime contract |
+| §13 | `13-handover.md` | Critical constraints, deployment, status, extension procedures |
+| §14 | `14-future-work-tally.md` | Known gaps and deferred work |
+| §15 | `15-scope.md` | Scope, truth classes, authority order |
+| §16 | `16-governance.md` | Ownership, designation, authority boundaries |
+| §17 | `17-change-control.md` | Change workflow, maintenance triggers, defect records |
+| §18 | `18-appendices.md` | Glossary, cross-references, revision history |
 
 ## Quick Assembly
 

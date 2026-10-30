@@ -1,15 +1,22 @@
-# §10 — Testing
+# §11 — Testing
 
 ## Test Suite Overview
+
+> Snapshot fact: counts and results from a run on 2026-10-30 (Windows 11, stable Rust, Python 3.12). Recount before relying on them.
 
 | Layer | Tests | File | Framework |
 |-------|-------|------|-----------|
 | Rust invariants | 6 | `forgeimages-core/tests/invariants.rs` | cargo test |
-| Rust core | 45 | inline (23), `tests/cli_payload.rs` (3), `tests/source_master.rs` (19) | cargo test |
-| Python agent boundaries | 18 | `forgeagents-forgeimages/tests/test_agent_boundary.py` | pytest |
-| Bridge CLI payload transport | 2 | `test_bridge_cli_payload.py` | pytest |
-| Cloud validation contracts | 18 | `test_forgeimages_validation_contracts.py`, `test_forgeimages_rejection_report_contract.py` | pytest |
-| Cloud validator and manifests | 14 | `test_forgeimages_asset_validator.py`, `test_forgeimages_asset_manifest.py` | pytest |
+| Rust source-master ingestion | 19 | `forgeimages-core/tests/source_master.rs` | cargo test |
+| Rust CLI stdin payload | 3 | `forgeimages-core/tests/cli_payload.rs` | cargo test |
+| Rust inline unit tests | 23 | `pdf.rs` (14), `hashing.rs` (3), `cover_params.rs` (3), `rules/dimensions.rs` (3) | cargo test |
+| Python agent boundaries | 18 | `tests/test_agent_boundary.py` | pytest |
+| Python bridge stdin payload | 2 | `tests/test_bridge_cli_payload.py` | pytest |
+| Cloud validation contracts | 18 | `test_forgeimages_validation_contracts.py` (13), `test_forgeimages_rejection_report_contract.py` (5) | pytest |
+| Cloud validator and manifests | 14 | `test_forgeimages_asset_validator.py` (10), `test_forgeimages_asset_manifest.py` (4) | pytest |
+| **Total** | **51 Rust, 52 Python** | all passing | |
+
+`forgeimages-tauri` has no tests. The three commands are thin wrappers over engine calls the tests above cover, but their state handling (empty-registry fallback, lock poisoning) is unexercised. The `test-hooks` feature (a validation-call counter in `pipeline.rs`) is not used by any current test. `invariant_compile_calls_validate` proves the invariant by rejecting an invalid asset at compile time. CI runs both suites (see Continuous Integration below).
 
 ## Rust Invariant Tests
 
@@ -33,7 +40,7 @@ Requesting a non-existent template returns `PipelineError::TemplateNotFound`.
 ### `invariant_validation_result_structure`
 The `ValidationResult` struct has the required fields: `valid`, `violations`, `template_id`, `template_version`.
 
-### Rust Inline Tests (hashing.rs)
+### Rust Inline Tests (hashing.rs; pdf.rs, cover_params.rs and rules/dimensions.rs carry their own)
 
 - `test_canonical_json_sorted` — Keys are sorted alphabetically
 - `test_hash_deterministic` — Same input = same SHA-256
@@ -138,7 +145,7 @@ cd forgeagents-forgeimages && pytest tests/ -v --cov=bridge --cov=skill
 |-----|----------|-------|
 | Rust | `cargo fmt --all -- --check`, `cargo clippy --locked --workspace --all-targets -- -D warnings`, `cargo test --locked --workspace` | Toolchain pinned to 1.97.0. Installs GTK and WebKitGTK, because `forgeimages-tauri` links Tauri. |
 | Python | `pytest tests/ -q` in `forgeagents-forgeimages` | Python 3.12. Runtime dependencies come from the hashed `packaging/requirements-freeze.txt`. |
-| Documentation | `bash doc/system/BUILD.sh`, then `git diff --exit-code -- doc/` | Fails when `doc/IMGSYSTEM.md` differs from its parts. |
+| Documentation | `bash doc/system/BUILD.sh`, then `git diff --exit-code -- doc/` | Fails when `doc/imgSYSTEM.md` differs from its parts. |
 
 `.github/workflows/freeze.yml` is separate. It freezes and runs the sidecar on Linux, macOS, and Windows, and runs only when packaging or engine paths change.
 

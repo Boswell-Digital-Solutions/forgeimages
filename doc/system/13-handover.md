@@ -1,4 +1,4 @@
-# §11 — Handover
+# §13 — Handover
 
 ## Critical Constraints (Non-Negotiable)
 
@@ -56,57 +56,32 @@ curl -X POST http://localhost:8100/validate/pwa-icon \
 
 ## Implementation Status
 
-- [x] Core Rust library (`forgeimages-core` v1.0.0)
-- [x] Template system (`templates.rs` + `pwa-icon.json`)
-- [x] Validation pipeline (3 rules + failure mode policy)
-- [x] SHA-256 manifest generation (canonical JSON, job_hash, manifest_hash)
-- [x] PrintAuthority enum (System/Template/User with DPI/CMYK support)
-- [x] Compilation pipeline (compile always validates, no bypass)
-- [x] CLI binary (templates, validate, compile subcommands)
-- [x] Bridge service (5 FastAPI endpoints)
-- [x] Skill wrapper (async httpx client with error handling)
-- [x] Audit logging (append-only JSONL with job_hash)
-- [x] Invariant tests (6 Rust contract tests)
-- [x] Boundary tests (18 Python enforcement tests)
-- [x] Cloud-fulfillment Slice 01 validation and rejection contracts
-- [x] Cloud-fulfillment Slice 02 deterministic validator and manifest model
-- [ ] Tauri integration for VibeForge
-- [ ] MCP tool definitions
+- [x] Core Rust library (`forgeimages-core` v1.0.0) and CLI (`templates`, `validate`, `compile`, `--payload -`)
+- [x] Template system with 5 shipped contracts (§8)
+- [x] Validation pipeline (3 default rules and the failure-mode policy)
+- [x] SHA-256 job, manifest and export hashes over canonical JSON
+- [x] Compilation that always validates first
+- [x] Source-master ingestion: SVG pass-through, raster PNG/JPEG resize, refusal of everything else by name
+- [x] Deterministic raster → PDF/X-1a:2001 writer for opaque grayscale masters
+- [x] Bridge service (5 FastAPI endpoints, payload on stdin, append-only audit log)
+- [x] Skill wrapper (async httpx client, default `http://127.0.0.1:8100`)
+- [x] Tauri commands for AuthorForge (§7)
+- [x] Frozen `forgeimages-bridge` sidecar, qualified on three OSes in CI (§12)
+- [x] Cloud-fulfillment Slice 01 contracts and Slice 02 offline validator and manifest
+- [ ] Served cloud-fulfillment route, artifact-byte retrieval, durable manifest store, replacement loop (Slice 03 is next)
+- [ ] SVG rasterization, ICO export, RGB→CMYK print path (§14)
 
-The Slice 01/02 cloud-fulfillment components are offline seams: no
-NeuroForge-facing validation route, artifact-byte retrieval, durable manifest
-store, Rust compiler integration, or replacement loop is implemented. The next
-governed work is the cross-repository replacement-feedback Slice 03, initially
-using stubs and mocks.
-
-## Future Work
-
-### Tauri Integration (VibeForge)
-
-Wrap ForgeImages operations as Tauri commands for desktop use. The bridge service would be replaced by direct Rust library calls from the Tauri backend.
-
-### MCP Tool Definitions
-
-Define MCP tools for ForgeImages operations, enabling AI agents to discover and invoke ForgeImages capabilities via the Model Context Protocol.
-
-### Additional Templates
-
-- Book cover template (AuthorForge)
-- Banner template (marketing assets)
-- Logo template (brand assets)
-
-### CMYK Export Pipeline
-
-Full CMYK support for print production, leveraging the PrintAuthority system already in place.
+Gaps and deferred work are tallied in §14.
 
 ## Adding a New Template
 
-1. Create a JSON file in `forgeimages-core/templates/` following the pwa-icon.json structure
+1. Create a JSON file in `forgeimages-core/templates/` following an existing template's structure. A new ID, or a bumped `templateVersion` for a behaviour change: never edit a published template in place
 2. Set `templateVersion` to "1.0.0" and `engineMinVersion` to the current engine version
 3. Define validation rules (aspect ratio, resolution, color count)
 4. Define export specifications (format, size, required flag)
-5. Run `cargo test` to verify the template loads correctly
-6. Test via CLI: `forgeimages-cli validate --template <id> --payload '...'`
+5. Run `cargo test`, then check that the CLI actually lists it (`forgeimages-cli --templates-dir forgeimages-core/templates templates`). The registry skips an unparseable file silently, so a passing test run does not prove the template loaded
+6. If AuthorForge needs it on the desktop path, also add it to AuthorForge's `src-tauri/forgeimages-templates/`
+7. Test via CLI: `forgeimages-cli validate --template <id> --payload '...'`
 
 ## Adding a New Validation Rule
 
@@ -115,4 +90,4 @@ Full CMYK support for print production, leveraging the PrintAuthority system alr
 3. Add the rule to the `Validator` struct's rule list
 4. Add invariant tests in `tests/invariants.rs`
 5. Add boundary tests in `tests/test_agent_boundary.py`
-6. Update this documentation (§7 and §10)
+6. Update this documentation (§8 and §11) and `system_manifest.json` if a chapter is added

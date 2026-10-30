@@ -1,0 +1,329 @@
+{
+  "schema": "bds.repo_doc_system_manifest.v1",
+  "designation": "img",
+  "compiled_artifact": "doc/imgSYSTEM.md",
+  "source_root": "doc/system",
+  "build_command": "bash doc/system/BUILD.sh",
+  "validation_command": "bash doc/system/validate_snapshots.sh",
+  "layout": "flat_bootstrap_modules",
+  "sections": [
+    {
+      "section_id": "01-overview-philosophy",
+      "source_file": "01-overview-philosophy.md",
+      "title": "Overview & Philosophy",
+      "preferred_agent": "runtime_doc_agent",
+      "truth_classes": [
+        "canonical",
+        "snapshot"
+      ],
+      "owned_surfaces": [
+        "README.md",
+        "CLAUDE.md",
+        "forgeimages-core/src/lib.rs"
+      ],
+      "maintenance_triggers": [
+        "service_identity_changed",
+        "six_laws_changed",
+        "metrics_drifted"
+      ]
+    },
+    {
+      "section_id": "02-architecture",
+      "source_file": "02-architecture.md",
+      "title": "Architecture",
+      "preferred_agent": "runtime_doc_agent",
+      "truth_classes": [
+        "canonical"
+      ],
+      "owned_surfaces": [
+        "forgeimages-core/src/pipeline.rs",
+        "forgeagents-forgeimages/bridge/forgeimages_bridge.py"
+      ],
+      "maintenance_triggers": [
+        "authority_boundary_changed",
+        "entry_path_added",
+        "component_added"
+      ]
+    },
+    {
+      "section_id": "03-tech-stack",
+      "source_file": "03-tech-stack.md",
+      "title": "Tech Stack",
+      "preferred_agent": "dependency_doc_agent",
+      "truth_classes": [
+        "canonical",
+        "snapshot"
+      ],
+      "owned_surfaces": [
+        "Cargo.toml",
+        "Cargo.lock",
+        "forgeimages-core/Cargo.toml",
+        "forgeimages-tauri/Cargo.toml",
+        "forgeagents-forgeimages/pyproject.toml",
+        "packaging/requirements-freeze.*"
+      ],
+      "maintenance_triggers": [
+        "dependency_changed",
+        "toolchain_changed"
+      ]
+    },
+    {
+      "section_id": "04-project-structure",
+      "source_file": "04-project-structure.md",
+      "title": "Project Structure",
+      "preferred_agent": "runtime_doc_agent",
+      "truth_classes": [
+        "canonical",
+        "snapshot"
+      ],
+      "owned_surfaces": [],
+      "maintenance_triggers": [
+        "top_level_structure_changed",
+        "module_added",
+        "module_moved"
+      ]
+    },
+    {
+      "section_id": "05-config-env",
+      "source_file": "05-config-env.md",
+      "title": "Configuration & Environment",
+      "preferred_agent": "config_ops_doc_agent",
+      "truth_classes": [
+        "canonical"
+      ],
+      "owned_surfaces": [
+        "forgeagents-forgeimages/bridge/settings.py",
+        "forgeimages-core/src/bin/forgeimages_cli.rs"
+      ],
+      "maintenance_triggers": [
+        "env_var_changed",
+        "cli_flag_changed",
+        "default_changed"
+      ]
+    },
+    {
+      "section_id": "06-api-layer",
+      "source_file": "06-api-layer.md",
+      "title": "API Layer",
+      "preferred_agent": "api_contract_doc_agent",
+      "truth_classes": [
+        "canonical"
+      ],
+      "owned_surfaces": [
+        "forgeagents-forgeimages/bridge/forgeimages_bridge.py",
+        "forgeagents-forgeimages/bridge/models.py",
+        "forgeagents-forgeimages/bridge/cloud_fulfillment_*.py",
+        "forgeimages-core/src/bin/forgeimages_cli.rs"
+      ],
+      "maintenance_triggers": [
+        "endpoint_changed",
+        "model_changed",
+        "contract_version_changed"
+      ]
+    },
+    {
+      "section_id": "07-tauri-command-interface",
+      "source_file": "07-tauri-command-interface.md",
+      "title": "Tauri Command Interface",
+      "preferred_agent": "api_contract_doc_agent",
+      "truth_classes": [
+        "canonical"
+      ],
+      "owned_surfaces": [
+        "forgeimages-tauri/**"
+      ],
+      "maintenance_triggers": [
+        "tauri_command_changed",
+        "managed_state_changed"
+      ]
+    },
+    {
+      "section_id": "08-backend-internals",
+      "source_file": "08-backend-internals.md",
+      "title": "Backend Internals",
+      "preferred_agent": "runtime_doc_agent",
+      "truth_classes": [
+        "canonical",
+        "snapshot"
+      ],
+      "owned_surfaces": [
+        "forgeimages-core/src/**",
+        "forgeimages-core/templates/*.json",
+        "forgeagents-forgeimages/bridge/audit.py"
+      ],
+      "maintenance_triggers": [
+        "engine_behavior_changed",
+        "template_added",
+        "conversion_rule_changed"
+      ]
+    },
+    {
+      "section_id": "09-ecosystem-integration",
+      "source_file": "09-ecosystem-integration.md",
+      "title": "Ecosystem Integration",
+      "preferred_agent": "api_contract_doc_agent",
+      "truth_classes": [
+        "canonical"
+      ],
+      "owned_surfaces": [
+        "forgeagents-forgeimages/skill/**"
+      ],
+      "maintenance_triggers": [
+        "consumer_added",
+        "integration_contract_changed"
+      ]
+    },
+    {
+      "section_id": "10-error-handling",
+      "source_file": "10-error-handling.md",
+      "title": "Error Handling",
+      "preferred_agent": "api_contract_doc_agent",
+      "truth_classes": [
+        "canonical"
+      ],
+      "owned_surfaces": [
+        "forgeimages-core/src/pipeline.rs",
+        "forgeimages-core/src/source_master.rs",
+        "forgeimages-core/src/bin/forgeimages_cli.rs"
+      ],
+      "maintenance_triggers": [
+        "error_variant_changed",
+        "exit_code_changed",
+        "status_mapping_changed"
+      ]
+    },
+    {
+      "section_id": "11-testing",
+      "source_file": "11-testing.md",
+      "title": "Testing",
+      "preferred_agent": "testing_doc_agent",
+      "truth_classes": [
+        "canonical",
+        "snapshot"
+      ],
+      "owned_surfaces": [
+        "forgeimages-core/tests/**",
+        "forgeagents-forgeimages/tests/**"
+      ],
+      "maintenance_triggers": [
+        "test_added",
+        "test_count_drifted"
+      ]
+    },
+    {
+      "section_id": "12-frozen-sidecar",
+      "source_file": "12-frozen-sidecar.md",
+      "title": "Frozen Bridge Sidecar",
+      "preferred_agent": "config_ops_doc_agent",
+      "truth_classes": [
+        "canonical"
+      ],
+      "owned_surfaces": [
+        "packaging/**",
+        ".github/workflows/freeze.yml"
+      ],
+      "maintenance_triggers": [
+        "packaging_changed",
+        "sidecar_contract_changed",
+        "ci_changed"
+      ]
+    },
+    {
+      "section_id": "13-handover",
+      "source_file": "13-handover.md",
+      "title": "Handover",
+      "preferred_agent": "handover_doc_agent",
+      "truth_classes": [
+        "canonical",
+        "snapshot"
+      ],
+      "owned_surfaces": [],
+      "maintenance_triggers": [
+        "deployment_changed",
+        "implementation_status_changed"
+      ]
+    },
+    {
+      "section_id": "14-future-work-tally",
+      "source_file": "14-future-work-tally.md",
+      "title": "Known Gaps & Future-Work Tally",
+      "preferred_agent": "handover_doc_agent",
+      "truth_classes": [
+        "snapshot"
+      ],
+      "owned_surfaces": [
+        "docs/KNOWN_ISSUES.md"
+      ],
+      "maintenance_triggers": [
+        "gap_closed",
+        "gap_found"
+      ]
+    },
+    {
+      "section_id": "15-scope",
+      "source_file": "15-scope.md",
+      "title": "Scope",
+      "preferred_agent": "governance_doc_agent",
+      "truth_classes": [
+        "canonical"
+      ],
+      "owned_surfaces": [],
+      "maintenance_triggers": [
+        "scope_changed",
+        "authority_order_changed"
+      ]
+    },
+    {
+      "section_id": "16-governance",
+      "source_file": "16-governance.md",
+      "title": "Governance",
+      "preferred_agent": "governance_doc_agent",
+      "truth_classes": [
+        "canonical"
+      ],
+      "owned_surfaces": [
+        "LICENSE"
+      ],
+      "maintenance_triggers": [
+        "designation_changed",
+        "ownership_changed",
+        "authority_boundary_changed"
+      ]
+    },
+    {
+      "section_id": "17-change-control",
+      "source_file": "17-change-control.md",
+      "title": "Change Control",
+      "preferred_agent": "governance_doc_agent",
+      "truth_classes": [
+        "canonical"
+      ],
+      "owned_surfaces": [
+        "doc/system/BUILD.sh",
+        "doc/system/validate_snapshots.sh",
+        "doc/system/system_manifest.json"
+      ],
+      "maintenance_triggers": [
+        "workflow_changed",
+        "maintenance_trigger_changed"
+      ]
+    },
+    {
+      "section_id": "18-appendices",
+      "source_file": "18-appendices.md",
+      "title": "Appendices",
+      "preferred_agent": "governance_doc_agent",
+      "truth_classes": [
+        "canonical"
+      ],
+      "owned_surfaces": [
+        "docs/*.md",
+        "reports/**"
+      ],
+      "maintenance_triggers": [
+        "glossary_changed",
+        "revision_recorded"
+      ]
+    }
+  ]
+}

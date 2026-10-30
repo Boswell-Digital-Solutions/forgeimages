@@ -59,15 +59,28 @@ The validation and compilation engine. Template contracts, validation rules, SHA
 - All outputs include deterministic manifest hashes
 - Canonical JSON ensures hash stability across platforms
 
+## Two Entry Paths into the Engine
+
+The engine has two callers, and they reach it differently:
+
+| Path | Caller | How it reaches `forgeimages-core` | Operations |
+| --- | --- | --- | --- |
+| HTTP sidecar | NeuronForge Local image lane, ForgeAgents skill | `forgeimages-bridge` (FastAPI) runs `forgeimages-cli` as a subprocess and sends the JSON payload on stdin | list templates, validate, compile |
+| Desktop in-process | AuthorForge Tauri app | `forgeimages-tauri` links the crate directly. Commands are registered in AuthorForge's `src-tauri/src/main.rs` | list templates, validate a file on disk, validate metadata |
+
+The desktop path has no compile command. The Tauri path reads a real file from disk (`validate_from_file`), so a file path crosses into the engine there. That is inside the desktop app's own process, not across the agent trust boundary. No agent reaches the Tauri commands.
+
 ## Data Flow: Compile Request
 
 ```
 Agent                   Bridge                    Engine
   │                       │                         │
   │──POST /compile/X────▶│                         │
-  │                       │──call_cli(compile)────▶│
+  │                       │──call_cli(compile)────▶│  payload on stdin
   │                       │                         │──validate_asset()
   │                       │                         │──check_engine_version()
+  │                       │                         │──source_master::decode()
+  │                       │                         │──check_admissible()
   │                       │                         │──generate_exports()
   │                       │                         │──compute_job_hash()
   │                       │◀──JSON + exit code──────│
@@ -108,7 +121,8 @@ This eliminates conditional sprawl — the enum determines behavior, not nested 
 ## Template Contract Model
 
 Templates are JSON files that define:
-- Asset class (Icon, Cover, Banner, Logo)
+- Asset class (`icon`, `cover`, `banner`, `logo`, `map`, `panel`, `character_portrait`, `scene_illustration`, `marketing_social`)
+- Whether the template requires a vector master (`vectorMaster`)
 - Aspect ratio with quantization tolerance
 - Minimum resolution constraints
 - Color count limits
@@ -124,6 +138,10 @@ Templates are versioned via semver. The engine checks `engineMinVersion` against
 |----------|-----------|
 | Rust core, Python bridge | Rust for determinism + safety; Python for agent ecosystem integration |
 | CLI subprocess (not FFI) | Clean process boundary; exit codes are the enforcement mechanism |
+| Payload on stdin (`--payload -`) | A base64 raster master is megabytes; Linux caps one argument at 128 KiB and Windows the whole command line at 32 KiB (KI-IMG-20261017-001) |
+| Tauri crate links the engine directly | The desktop app validates local files without running the HTTP sidecar |
+| Supplied master is authoritative | A master that cannot be honoured fails the compile; it never falls back to a placeholder |
+| Hand-written PDF/X-1a writer | General PDF libraries inject clocks, random IDs and encoder drift that break byte-reproducibility |
 | HTTP 422 for validation | Standard HTTP semantics; agents must handle 422 to proceed |
 | Append-only audit log | Legal defensibility; no mutation of historical records |
 | Base64 export data | No file paths cross the trust boundary; data is self-contained |
