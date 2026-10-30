@@ -42,7 +42,7 @@ required module, and the template list that the bundled CLI returns. It opens no
 socket and writes no file. It exits 0 only when every part works. Any other
 argument exits 2.
 
-The bridge does not require a per-launch capability. It binds to loopback only.
+The bridge does not require a per-launch capability. It binds to loopback only, which does not stop a local browser page from calling it (KI-IMG-20261030-001, open).
 
 ## Qualification
 

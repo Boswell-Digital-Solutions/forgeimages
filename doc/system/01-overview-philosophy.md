@@ -94,5 +94,5 @@ ForgeAgents reaches the bridge through the `ForgeImagesSkill` client. NeuroForge
 | CLI subcommands | 3 (`templates`, `validate`, `compile`) |
 | Bridge HTTP endpoints | 5 |
 | Tauri IPC commands | 3 |
-| Rust tests (`cargo test --workspace --features forgeimages-core/test-hooks`) | 51, all passing (§11) |
+| Rust tests (`cargo test --workspace`) | 51, all passing (§11) |
 | Python tests (`pytest tests/`) | 52, all passing (§11) |

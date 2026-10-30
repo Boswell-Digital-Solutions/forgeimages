@@ -101,7 +101,7 @@ impl ValidationRule for AspectRatioRule {
             vec![ValidationViolation {
                 rule: self.name().to_string(),
                 severity: ViolationSeverity::Error,
-                message: format!("Aspect ratio mismatch"),
+                message: "Aspect ratio mismatch".to_string(),
                 expected: Some(format!(
                     "{}:{}",
                     template.aspect_ratio[0], template.aspect_ratio[1]

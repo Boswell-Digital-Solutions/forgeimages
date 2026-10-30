@@ -63,10 +63,10 @@ The PDF/X-1a writer (`pdf.rs`) uses no PDF library and no compressor. That is de
 | uvicorn | Bridge server |
 | pytest | Python tests |
 | PyInstaller | Frozen `forgeimages-bridge` sidecar (§12) |
-| GitHub Actions | `.github/workflows/freeze.yml`: engine tests, freeze, qualification on ubuntu-22.04, macos-latest, windows-latest |
+| GitHub Actions | `ci.yml`: Rust fmt/clippy/test (toolchain 1.97.0), Python tests, documentation parity on every PR. `freeze.yml`: freeze and qualification on ubuntu-22.04, macos-latest, windows-latest |
 
 ## Feature Flags
 
 | Flag | Purpose |
 |------|---------|
-| `test-hooks` | Counts `validate_asset()` calls so `invariant_compile_calls_validate` can prove compile always validates |
+| `test-hooks` | Exposes a `validate_asset()` call counter in `pipeline.rs`. No current test enables it |

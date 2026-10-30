@@ -16,7 +16,7 @@
 | Cloud validator and manifests | 14 | `test_forgeimages_asset_validator.py` (10), `test_forgeimages_asset_manifest.py` (4) | pytest |
 | **Total** | **51 Rust, 52 Python** | all passing | |
 
-`forgeimages-tauri` has no tests. The three commands are thin wrappers over engine calls the tests above cover, but their state handling (empty-registry fallback, lock poisoning) is unexercised. `invariant_compile_calls_validate` needs `--features forgeimages-core/test-hooks` to count validation calls. CI (`freeze.yml`) runs `cargo test --locked -p forgeimages-core` and the frozen-binary qualification. It does **not** run the Python test suite (§14).
+`forgeimages-tauri` has no tests. The three commands are thin wrappers over engine calls the tests above cover, but their state handling (empty-registry fallback, lock poisoning) is unexercised. The `test-hooks` feature (a validation-call counter in `pipeline.rs`) is not used by any current test. `invariant_compile_calls_validate` proves the invariant by rejecting an invalid asset at compile time. CI runs both suites (see Continuous Integration below).
 
 ## Rust Invariant Tests
 
@@ -136,6 +136,20 @@ cd forgeagents-forgeimages && \
 # Python tests with coverage
 cd forgeagents-forgeimages && pytest tests/ -v --cov=bridge --cov=skill
 ```
+
+## Continuous Integration
+
+`.github/workflows/ci.yml` runs on every pull request to `master` and every push to `master`. It has three jobs:
+
+| Job | Commands | Notes |
+|-----|----------|-------|
+| Rust | `cargo fmt --all -- --check`, `cargo clippy --locked --workspace --all-targets -- -D warnings`, `cargo test --locked --workspace` | Toolchain pinned to 1.97.0. Installs GTK and WebKitGTK, because `forgeimages-tauri` links Tauri. |
+| Python | `pytest tests/ -q` in `forgeagents-forgeimages` | Python 3.12. Runtime dependencies come from the hashed `packaging/requirements-freeze.txt`. |
+| Documentation | `bash doc/system/BUILD.sh`, then `git diff --exit-code -- doc/` | Fails when `doc/imgSYSTEM.md` differs from its parts. |
+
+`.github/workflows/freeze.yml` is separate. It freezes and runs the sidecar on Linux, macOS, and Windows, and runs only when packaging or engine paths change.
+
+A workflow that exists is not a required check. Making `CI` a required status check is a separate repository-settings decision.
 
 ## Test Philosophy
 

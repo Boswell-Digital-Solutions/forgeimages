@@ -6,21 +6,16 @@ use serde::{Deserialize, Serialize};
 
 /// PrintAuthority determines where print specifications come from.
 /// This prevents if/else sprawl throughout the codebase.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PrintAuthority {
     /// System defaults (fallback)
+    #[default]
     System,
     /// Template-defined specifications
     Template,
     /// User-provided overrides (with validation)
     User,
-}
-
-impl Default for PrintAuthority {
-    fn default() -> Self {
-        Self::System
-    }
 }
 
 /// Print specifications for physical output
@@ -64,10 +59,10 @@ impl PrintSpec {
 
     /// Create from user with validation
     pub fn from_user(dpi: u32, color_space: ColorSpace, bleed: f64) -> Result<Self, &'static str> {
-        if dpi < 72 || dpi > 1200 {
+        if !(72..=1200).contains(&dpi) {
             return Err("DPI must be between 72 and 1200");
         }
-        if bleed < 0.0 || bleed > 1.0 {
+        if !(0.0..=1.0).contains(&bleed) {
             return Err("Bleed must be between 0 and 1 inch");
         }
         Ok(Self {

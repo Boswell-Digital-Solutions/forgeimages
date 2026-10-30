@@ -164,12 +164,11 @@ impl TemplateRegistry {
             for entry in fs::read_dir(dir)? {
                 let entry = entry?;
                 let path = entry.path();
-                if path.extension().map_or(false, |e| e == "json") {
-                    if let Ok(content) = fs::read_to_string(&path) {
-                        if let Ok(template) = serde_json::from_str::<Template>(&content) {
-                            registry.templates.insert(template.id.clone(), template);
-                        }
-                    }
+                if path.extension().is_some_and(|e| e == "json")
+                    && let Ok(content) = fs::read_to_string(&path)
+                    && let Ok(template) = serde_json::from_str::<Template>(&content)
+                {
+                    registry.templates.insert(template.id.clone(), template);
                 }
             }
         }

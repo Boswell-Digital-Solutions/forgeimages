@@ -7,13 +7,15 @@
 3. Run the verification set:
 
    ```bash
-   cargo test --workspace --features forgeimages-core/test-hooks
+   cargo fmt --all -- --check
+   cargo clippy --locked --workspace --all-targets -- -D warnings
+   cargo test --locked --workspace
    cd forgeagents-forgeimages && pytest tests/ -q
    bash doc/system/BUILD.sh        # must print BUILD_OK
    ```
 
 4. Commit `doc/imgSYSTEM.md` together with its sources. The compiled file is tracked so that a PR diff shows the documentation change.
-5. Open the PR. `freeze.yml` runs on changes to packaging, the bridge, the engine and the Cargo files. It does not run the Python tests (§14 G16), so step 3 is the only Python gate.
+5. Open the PR. `ci.yml` runs the same Rust and Python commands and the documentation parity check (`BUILD.sh`, then `git diff --exit-code -- doc/`) on every PR. `freeze.yml` additionally freezes and qualifies the sidecar when packaging or engine paths change. `CI` is not yet a required status check.
 
 ## Documentation Maintenance Triggers
 

@@ -157,7 +157,7 @@ ForgeAgents reaches the bridge through the `ForgeImagesSkill` client. NeuroForge
 | CLI subcommands | 3 (`templates`, `validate`, `compile`) |
 | Bridge HTTP endpoints | 5 |
 | Tauri IPC commands | 3 |
-| Rust tests (`cargo test --workspace --features forgeimages-core/test-hooks`) | 51, all passing (§11) |
+| Rust tests (`cargo test --workspace`) | 51, all passing (§11) |
 | Python tests (`pytest tests/`) | 52, all passing (§11) |
 
 ---
@@ -381,13 +381,13 @@ The PDF/X-1a writer (`pdf.rs`) uses no PDF library and no compressor. That is de
 | uvicorn | Bridge server |
 | pytest | Python tests |
 | PyInstaller | Frozen `forgeimages-bridge` sidecar (§12) |
-| GitHub Actions | `.github/workflows/freeze.yml`: engine tests, freeze, qualification on ubuntu-22.04, macos-latest, windows-latest |
+| GitHub Actions | `ci.yml`: Rust fmt/clippy/test (toolchain 1.97.0), Python tests, documentation parity on every PR. `freeze.yml`: freeze and qualification on ubuntu-22.04, macos-latest, windows-latest |
 
 ## Feature Flags
 
 | Flag | Purpose |
 |------|---------|
-| `test-hooks` | Counts `validate_asset()` calls so `invariant_compile_calls_validate` can prove compile always validates |
+| `test-hooks` | Exposes a `validate_asset()` call counter in `pipeline.rs`. No current test enables it |
 
 ---
 
@@ -1534,7 +1534,7 @@ The **path** `{template_id}` is not pattern-checked on any endpoint. It goes to 
 | Cloud validator and manifests | 14 | `test_forgeimages_asset_validator.py` (10), `test_forgeimages_asset_manifest.py` (4) | pytest |
 | **Total** | **51 Rust, 52 Python** | all passing | |
 
-`forgeimages-tauri` has no tests. The three commands are thin wrappers over engine calls the tests above cover, but their state handling (empty-registry fallback, lock poisoning) is unexercised. `invariant_compile_calls_validate` needs `--features forgeimages-core/test-hooks` to count validation calls. CI (`freeze.yml`) runs `cargo test --locked -p forgeimages-core` and the frozen-binary qualification. It does **not** run the Python test suite (§14).
+`forgeimages-tauri` has no tests. The three commands are thin wrappers over engine calls the tests above cover, but their state handling (empty-registry fallback, lock poisoning) is unexercised. The `test-hooks` feature (a validation-call counter in `pipeline.rs`) is not used by any current test. `invariant_compile_calls_validate` proves the invariant by rejecting an invalid asset at compile time. CI runs both suites (see Continuous Integration below).
 
 ## Rust Invariant Tests
 
@@ -1655,6 +1655,20 @@ cd forgeagents-forgeimages && \
 cd forgeagents-forgeimages && pytest tests/ -v --cov=bridge --cov=skill
 ```
 
+## Continuous Integration
+
+`.github/workflows/ci.yml` runs on every pull request to `master` and every push to `master`. It has three jobs:
+
+| Job | Commands | Notes |
+|-----|----------|-------|
+| Rust | `cargo fmt --all -- --check`, `cargo clippy --locked --workspace --all-targets -- -D warnings`, `cargo test --locked --workspace` | Toolchain pinned to 1.97.0. Installs GTK and WebKitGTK, because `forgeimages-tauri` links Tauri. |
+| Python | `pytest tests/ -q` in `forgeagents-forgeimages` | Python 3.12. Runtime dependencies come from the hashed `packaging/requirements-freeze.txt`. |
+| Documentation | `bash doc/system/BUILD.sh`, then `git diff --exit-code -- doc/` | Fails when `doc/imgSYSTEM.md` differs from its parts. |
+
+`.github/workflows/freeze.yml` is separate. It freezes and runs the sidecar on Linux, macOS, and Windows, and runs only when packaging or engine paths change.
+
+A workflow that exists is not a required check. Making `CI` a required status check is a separate repository-settings decision.
+
 ## Test Philosophy
 
 1. **Invariant tests verify laws, not features.** Each test maps to one of the Six Laws.
@@ -1708,7 +1722,7 @@ required module, and the template list that the bundled CLI returns. It opens no
 socket and writes no file. It exits 0 only when every part works. Any other
 argument exits 2.
 
-The bridge does not require a per-launch capability. It binds to loopback only.
+The bridge does not require a per-launch capability. It binds to loopback only, which does not stop a local browser page from calling it (KI-IMG-20261030-001, open).
 
 ## Qualification
 
@@ -1843,6 +1857,7 @@ This chapter lists what the code does **not** do yet, or does in a way a reader 
 
 | # | Gap | Where | Effect |
 | --- | --- | --- | --- |
+| G0 | The bridge accepts a call from any local caller, including a browser page via DNS rebinding: no `Host`, `Origin` or capability check | `forgeimages_bridge.py` | **Tracked as KI-IMG-20261030-001 (open, medium).** Impact is CPU use and audit rows. No file paths cross the boundary |
 | G10 | `/compile` returns 422 for every engine error | CLI + bridge | A rule failure, an unknown template and a refused master share one status. Distinguish them by `detail.error` |
 | G11 | `FORGEIMAGES_MAX_PAYLOAD_SIZE_KB` is declared and never read | `settings.py` | Only the 10 MB request limit applies |
 | G12 | The validate audit `job_hash` uses the bridge's configured `engine_version`, not the CLI's | `forgeimages_bridge.py` | If the two diverge, the audit hash names the wrong engine |
@@ -1854,8 +1869,8 @@ This chapter lists what the code does **not** do yet, or does in a way a reader 
 
 | # | Gap | Where | Effect |
 | --- | --- | --- | --- |
-| G16 | CI does not run the Python test suite | `.github/workflows/freeze.yml` | Bridge, skill and cloud-fulfillment regressions are caught only locally |
-| G17 | CI is path-filtered to `packaging/`, `bridge/`, `forgeimages-core/` and the Cargo files | `freeze.yml` | A change confined to `forgeimages-tauri/` or `skill/` triggers no CI |
+| G16 | `CI` (`ci.yml`) runs on every PR but is not a required status check | repository settings | A red run does not block a merge |
+| G17 | `freeze.yml` is path-filtered to `packaging/`, `bridge/`, `forgeimages-core/` and the Cargo files | `freeze.yml` | Sidecar qualification does not run for other changes. `ci.yml` covers the tests |
 | G18 | `forgeimages-tauri` has no tests | `forgeimages-tauri/` | The empty-registry fallback and lock handling are unexercised |
 | G19 | AuthorForge bundles its own copies of the templates | AuthorForge `src-tauri/forgeimages-templates/` | The desktop path and the sidecar path can validate against different contract versions |
 
@@ -1956,13 +1971,15 @@ The designation appears in exactly four places: `_index.md`, `BUILD.sh` (`DESIGN
 3. Run the verification set:
 
    ```bash
-   cargo test --workspace --features forgeimages-core/test-hooks
+   cargo fmt --all -- --check
+   cargo clippy --locked --workspace --all-targets -- -D warnings
+   cargo test --locked --workspace
    cd forgeagents-forgeimages && pytest tests/ -q
    bash doc/system/BUILD.sh        # must print BUILD_OK
    ```
 
 4. Commit `doc/imgSYSTEM.md` together with its sources. The compiled file is tracked so that a PR diff shows the documentation change.
-5. Open the PR. `freeze.yml` runs on changes to packaging, the bridge, the engine and the Cargo files. It does not run the Python tests (§14 G16), so step 3 is the only Python gate.
+5. Open the PR. `ci.yml` runs the same Rust and Python commands and the documentation parity check (`BUILD.sh`, then `git diff --exit-code -- doc/`) on every PR. `freeze.yml` additionally freezes and qualifies the sidecar when packaging or engine paths change. `CI` is not yet a required status check.
 
 ## Documentation Maintenance Triggers
 
