@@ -32,6 +32,31 @@ permissions:
   contents: read
 
 jobs:
+  # The frozen bridge ships what packaging/requirements-freeze.txt pins, and
+  # nothing audited it: opentelemetry-api 1.45.0 (CVE-2026-114603) and
+  # setuptools 84.0.0 (GHSA-xmj3-9gf7-h52w) shipped unnoticed until an external
+  # review read the lock. Fail on any advisory. An accepted advisory goes here as
+  # an explicit, dated --ignore-vuln entry, so the gate cannot drift with the
+  # advisory feed without a recorded decision.
+  #
+  # One runner, not the freeze matrix: the lock is --universal, so the answer does
+  # not vary by operating system.
+  audit:
+    name: Audit the hashed lock
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: pip-audit over packaging/requirements-freeze.txt
+        shell: bash
+        run: |
+          python -m pip install --quiet pip-audit
+          python -m pip_audit --progress-spinner off --strict \
+            -r packaging/requirements-freeze.txt
+
   freeze:
     name: Freeze and qualify (${{ matrix.os }})
     strategy:
