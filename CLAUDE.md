@@ -11,6 +11,10 @@ Canonical reference: `doc/system/` (`bash doc/system/BUILD.sh`).
 
 ---
 
+## Repo Identity
+
+- Default branch: master
+
 ## The Six Laws (non-negotiable)
 
 1. **SVG is truth** — vector masters are canonical; raster exports derive from them.
