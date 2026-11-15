@@ -27,6 +27,24 @@ Each entry has a date, what is wrong, the root cause, the fix, and an open or cl
   - Documentation: `doc/system/14-future-work-tally.md` gap G0 now says the bridge boundary is merged (`f308cdd`) and that the consumer side is pinned and proven, with the "Where" cell at `bridge/local_caller_boundary.py`; `doc/imgSYSTEM.md` is rebuilt.
   - Scope: **closed**.
 
+## KI-IMG-20261115-001 — two chapters still say the bridge has no authentication
+
+- Date: 2026-11-15. Source: BDS-ORG-ARCH-AUDIT-2026-11.
+- What is wrong: `doc/system/01-overview-philosophy.md:L15` says the bridge "has no authentication". `doc/system/09-ecosystem-integration.md:L113` says "Auth | None (X-User-ID for audit only)". The bridge requires a per-launch capability header on every route except `/health`. A reader of those two chapters gets the wrong security posture.
+- Evidence (Observed (doc tree)): `forgeimages@c96e433d1e:doc/system/05-config-env.md:L16`, `doc/system/06-api-layer.md:L159-L168` and `doc/system/12-frozen-sidecar.md:L29-L45` describe the header `X-AuthorForge-ForgeImages-Capability` and the loopback boundary. `doc/system/14-future-work-tally.md:L28` records gap G0 as closed. The 2026-10-30 resolution of KI-IMG-20261030-001 corrected part 14 only. Chapters 01 and 09 still carry the earlier text. The audit read the documentation and did not run the bridge.
+- Root cause: chapters 01 and 09 were written before the caller boundary merged in `f308cdd`. The resolution of KI-IMG-20261030-001 did not list them.
+- Fix: none proposed. Recommendation (audit): change `01-overview-philosophy.md:L15` and `09-ecosystem-integration.md:L113` to name the per-launch capability header and the public `/health` route. Keep `X-User-ID` described as an audit field only. Then run `bash doc/system/BUILD.sh`.
+- Scope: **open**.
+
+## KI-IMG-20261115-002 — this repository and `forge-app-modules` disagree about the lineage of `Forge_Images`
+
+- Date: 2026-11-15. Source: BDS-ORG-ARCH-AUDIT-2026-11.
+- What is wrong: the documentation gives two answers on how `Forge_Images` relates to this repository. A reader cannot tell if the code of one was copied from the other.
+- Evidence (Documented): `forgeimages@c96e433d1e:doc/system/01-overview-philosophy.md:L18` says `Forge_Images` is "a separate repository with a different git remote whose code has forked from this one". `doc/system/14-future-work-tally.md:L10` says the separate `Forge_Images` repository has a `resvg`-based renderer that is not ported here. `forge-app-modules@cd6a7f7:doc/system/02-submodule-inventory.md:L10` calls `Forge_Images` "a separate, unrelated repository with a similarly-spelled name". `Forge_Images@8b79b67e68:doc/system/` does not mention `forgeimages` or a fork.
+- Root cause: not determined. The audit did not compare the git history of the two repositories.
+- Fix: none proposed. Recommendation (audit): compare the commit history, then make the three documentation sets state one lineage. The pair is named in `PREFIX_REGISTRY.md` in the `forge` repository.
+- Scope: **open**.
+
 ## KI-IMG-20261017-001 — the bridge cannot compile a real raster master
 
 - Date: 2026-10-17. Found while preparing to ship the bridge inside AuthorForge release bundles.
